@@ -227,6 +227,29 @@ python -m benchmark --help
 Relevant `.env` settings: `VECTOR_BACKEND`, `EMBEDDING_DIMENSION`, `QDRANT_PATH`,
 `QDRANT_IN_MEMORY`, `CHROMA_PATH`, `BENCHMARK_LLMS`, `BENCHMARK_LIMIT` (see `.env.example`).
 
+### Troubleshooting
+
+**`hybrid_search` error: "Returned type real does not match expected type double
+precision in column 6"** — the original `hybrid_search` SQL function returned `real` from
+`ts_rank_cd` while declaring `double precision`. This is fixed in `sql/schema.sql`. Apply it
+to an existing database with either:
+
+```bash
+python init_database.py
+# or just the targeted migration:
+psql "$DATABASE_URL" -f sql/migrations/001_fix_hybrid_search_float_type.sql
+```
+
+**Graph mode returns 0 results / Neo4j warns `label Episode does not exist`** — the
+knowledge graph has not been populated yet. Graph retrieval reads `Episode` nodes created
+during ingestion. Run ingestion with graph building enabled (the default) so episodes exist:
+
+```bash
+python -m ingestion.ingest --documents ./data
+```
+
+An empty graph is not an error; the benchmark records 0 graph results and continues.
+
 ## 🤖 Using Free Local Models (Ollama)
 
 No API keys needed! Run everything on your machine:
