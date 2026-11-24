@@ -16,6 +16,8 @@ A completely **free and open source** Retrieval-Augmented Generation (RAG) syste
 ## 📚 Documentation
 
 - **[INSTALLATION.md](INSTALLATION.md)** - Setup and installation guide
+- **[docs/BENCHMARK_GUIDE.md](docs/BENCHMARK_GUIDE.md)** - How the vector-DB adapters and the
+  multi-LLM benchmark work, end to end
 
 ## 🚀 Quick Start (5 minutes)
 
