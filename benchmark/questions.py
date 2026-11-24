@@ -14,6 +14,7 @@ class EvalQuestion:
     question: str
     expected: Optional[str] = None
     notes: Optional[str] = None
+    must_include: list = field(default_factory=list)
     extra: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -49,14 +50,18 @@ def load_questions(path: str = DEFAULT_QUESTIONS_PATH) -> List[EvalQuestion]:
         text = item.get("question")
         if not text:
             raise ValueError(f"Question #{idx + 1} in {path} is missing 'question'.")
-        known = {"id", "question", "expected", "notes"}
+        known = {"id", "question", "expected", "notes", "must_include"}
         extra = {k: v for k, v in item.items() if k not in known}
+        must_include = item.get("must_include") or []
+        if not isinstance(must_include, list):
+            must_include = [must_include]
         questions.append(
             EvalQuestion(
                 id=str(item.get("id") or f"q{idx + 1}"),
                 question=text,
                 expected=item.get("expected"),
                 notes=item.get("notes"),
+                must_include=[str(k) for k in must_include],
                 extra=extra,
             )
         )

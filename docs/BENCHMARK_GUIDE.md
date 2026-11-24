@@ -328,6 +328,73 @@ python -m benchmark --backends pgvector --llms mistral llama3
 
 ---
 
+## 6b. Golden-standard scoring (accuracy, not just speed)
+
+Latency and token counts tell you how *cheap/fast* an answer was, not whether it was
+*correct*. The golden-standard layer measures correctness by comparing each generated answer
+to a known reference ("golden") answer.
+
+### The dataset — `data/generate_dataset.py`
+
+Running `python data/generate_dataset.py` writes ~50 deterministic Markdown documents under
+`data/corpus/` across seven compliance/markets categories (FINRA rules, SEC regulations, FIX
+protocol, compliance programs, market structure, registration/licensing, risk/reporting).
+The content is fixed, so the golden answers can be written against the exact text. Ingest it
+with `python -m ingestion.ingest --documents ./data/corpus`.
+
+### The golden questions — `data/eval_questions.json`
+
+Each question now carries two extra fields:
+
+```json
+{
+  "id": "q2",
+  "question": "What are the four component obligations of SEC Regulation Best Interest?",
+  "expected": "Reg BI comprises four obligations: the Disclosure Obligation, the Care Obligation, the Conflict of Interest Obligation, and the Compliance Obligation.",
+  "must_include": ["Disclosure", "Care", "Conflict of Interest", "Compliance"]
+}
+```
+
+- `expected` — the golden reference answer.
+- `must_include` — specific facts (rule numbers, dollar amounts, named obligations) that a
+  correct answer must contain.
+
+### The scorer — `benchmark/scoring.py`
+
+For every generated answer the scorer computes three signals and a composite:
+
+| Signal | Column | What it rewards |
+|--------|--------|-----------------|
+| Token-overlap F1 | `score_f1` | Using the same content words as the reference (precision + recall). |
+| Keyword coverage | `score_keyword_coverage` | Containing the required `must_include` facts. |
+| Embedding similarity | `score_embedding_similarity` | Being semantically close even if worded differently. |
+| **Composite** | `score_overall` | Weighted blend (0.35 / 0.35 / 0.30) of whatever signals are available. |
+
+Each signal is in the range 0–1. The composite only averages the signals that are actually
+available, so disabling embeddings (`--no-embedding-score`) still yields a sensible overall
+score from F1 + keywords. The `missing_keywords` column lists any required facts the answer
+left out, which is the quickest way to see *why* a model scored low.
+
+**Why three signals instead of one?** Each covers a blind spot of the others. F1 can be
+fooled by padding with reference words; keyword coverage can miss paraphrases; embedding
+similarity can rate a fluent-but-wrong answer highly. Together they are much harder to game.
+
+### Optional LLM-as-judge
+
+With `--judge <model>`, the scorer additionally asks an LLM to grade each answer 1–5 against
+the reference and records it (normalized to 0–1) in `score_llm_judge`. This is slower and
+non-deterministic, so it is off by default; the automatic metrics above need no extra LLM
+calls.
+
+### The report — `benchmark/report.py`
+
+After the CSV is written, `results/golden_report.md` summarizes accuracy: average
+`score_overall` and latency broken down **by LLM**, **by vector backend**, and **by retrieval
+mode**, plus the single best-scoring configuration and the five lowest-scoring questions. This
+is the "which setup is best" answer at a glance.
+
+---
+
 ## 7. The pgvector type fix (why it was needed)
 
 During a live run, hybrid mode failed with:
@@ -375,8 +442,9 @@ returns an empty list, which the benchmark records and moves on.
 
 **Added (new files):**
 - `agent/vector_store/` — the interface, three adapters, and the factory.
-- `benchmark/` — the runner and its helpers.
-- `data/eval_questions.json` — sample questions.
+- `benchmark/` — the runner and its helpers, including `scoring.py` and `report.py`.
+- `data/generate_dataset.py` — generates the ~50-document evaluation corpus.
+- `data/eval_questions.json` — golden questions with reference answers + required keywords.
 - `sql/migrations/001_fix_hybrid_search_float_type.sql` — the type-fix migration.
 - `.kiro/specs/vectordb-benchmark/` — the requirements/design/tasks spec.
 

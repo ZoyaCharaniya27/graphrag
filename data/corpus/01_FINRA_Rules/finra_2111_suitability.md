@@ -1,0 +1,3 @@
+# FINRA Rule 2111 - Suitability
+
+FINRA Rule 2111 requires that a firm or associated person have a reasonable basis to believe a recommended transaction or investment strategy is suitable for the customer. Suitability is based on the customer's investment profile, which includes age, other investments, financial situation and needs, tax status, investment objectives, investment experience, time horizon, liquidity needs, and risk tolerance. Rule 2111 identifies three main suitability obligations: reasonable-basis suitability, customer-specific suitability, and quantitative suitability. Quantitative suitability addresses excessive trading in a customer account when a firm or associated person has control over the account.

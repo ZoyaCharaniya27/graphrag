@@ -1,0 +1,3 @@
+# SEC Regulation Best Interest (Reg BI)
+
+SEC Regulation Best Interest (Reg BI), adopted under the Securities Exchange Act, establishes a best interest standard of conduct for broker-dealers and associated persons when making a recommendation of any securities transaction or investment strategy to a retail customer. Reg BI comprises four component obligations: the Disclosure Obligation, the Care Obligation, the Conflict of Interest Obligation, and the Compliance Obligation. A broker-dealer must act in the retail customer's best interest and cannot place its own financial interests ahead of the customer's interests.

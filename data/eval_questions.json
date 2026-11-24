@@ -1,27 +1,142 @@
 [
   {
     "id": "q1",
-    "question": "What are the key FINRA rules governing broker-dealer conduct?",
-    "notes": "Tests retrieval of regulatory rule content."
+    "question": "What are the three main suitability obligations under FINRA Rule 2111?",
+    "expected": "FINRA Rule 2111 identifies three suitability obligations: reasonable-basis suitability, customer-specific suitability, and quantitative suitability.",
+    "must_include": ["reasonable-basis", "customer-specific", "quantitative"],
+    "notes": "Grounded in 01_FINRA_Rules/finra_2111_suitability.md"
   },
   {
     "id": "q2",
-    "question": "Summarize the main requirements of SEC Regulation Best Interest.",
-    "notes": "Tests summarization over retrieved regulation text."
+    "question": "What are the four component obligations of SEC Regulation Best Interest?",
+    "expected": "Reg BI comprises four obligations: the Disclosure Obligation, the Care Obligation, the Conflict of Interest Obligation, and the Compliance Obligation.",
+    "must_include": ["Disclosure", "Care", "Conflict of Interest", "Compliance"],
+    "notes": "Grounded in 02_SEC_Regulations/sec_reg_bi.md"
   },
   {
     "id": "q3",
-    "question": "How should a firm handle a suspected case of insider trading?",
-    "notes": "Tests procedural / compliance-case retrieval."
+    "question": "In the FIX protocol, what MsgType value identifies a NewOrderSingle message?",
+    "expected": "A NewOrderSingle message is identified by MsgType (tag 35) with a value of D.",
+    "must_include": ["MsgType", "D", "35"],
+    "notes": "Grounded in 03_FIX_Protocol/fix_new_order_single.md"
   },
   {
     "id": "q4",
-    "question": "What is the structure of a FIX protocol NewOrderSingle message?",
-    "notes": "Tests domain-specific technical retrieval."
+    "question": "Under FINRA Rule 4511, how long must records with no other specified retention period be preserved?",
+    "expected": "Under FINRA Rule 4511, records for which no other retention period is specified must be preserved for at least six years.",
+    "must_include": ["six years", "4511"],
+    "notes": "Grounded in 01_FINRA_Rules/finra_4511_books_records.md"
   },
   {
     "id": "q5",
-    "question": "What recordkeeping obligations apply to electronic communications?",
-    "notes": "Tests retrieval of recordkeeping requirements."
+    "question": "What is the dollar threshold and filing deadline for a Suspicious Activity Report (SAR) by a broker-dealer?",
+    "expected": "A SAR must be filed for suspicious transactions of at least 5,000 dollars and generally must be filed within 30 calendar days of detecting the basis for filing.",
+    "must_include": ["5,000", "30"],
+    "notes": "Grounded in 04_Compliance_Programs/suspicious_activity_reporting.md"
+  },
+  {
+    "id": "q6",
+    "question": "What does the SEC Market Access Rule (Rule 15c3-5) require of broker-dealers?",
+    "expected": "Rule 15c3-5 requires broker-dealers with market access to establish risk management controls and supervisory procedures that prevent orders exceeding pre-set credit or capital thresholds and that reject erroneous orders.",
+    "must_include": ["15c3-5", "risk management controls", "erroneous"],
+    "notes": "Grounded in 02_SEC_Regulations/sec_market_access_rule.md"
+  },
+  {
+    "id": "q7",
+    "question": "What is a specified adult under FINRA Rule 2165, and how long can an initial temporary hold last?",
+    "expected": "Under Rule 2165 a specified adult is a person age 65 or older, or age 18 or older with a mental or physical impairment that prevents them from protecting their own interests; the initial temporary hold on a disbursement may last up to 15 business days.",
+    "must_include": ["65", "15 business days"],
+    "notes": "Grounded in 01_FINRA_Rules/finra_2165_financial_exploitation.md"
+  },
+  {
+    "id": "q8",
+    "question": "What are the three levels of market-wide circuit breakers and their S&P 500 decline thresholds?",
+    "expected": "Market-wide circuit breakers have three levels based on the S&P 500 decline from the prior close: Level 1 at 7 percent, Level 2 at 13 percent, and Level 3 at 20 percent.",
+    "must_include": ["7 percent", "13 percent", "20 percent"],
+    "notes": "Grounded in 05_Market_Structure/circuit_breakers.md"
+  },
+  {
+    "id": "q9",
+    "question": "What is the minimum equity a pattern day trader must maintain, and what defines a pattern day trader?",
+    "expected": "A pattern day trader executes four or more day trades within five business days (more than six percent of total trades) in a margin account and must maintain minimum equity of 25,000 dollars on any day day trading occurs.",
+    "must_include": ["25,000", "four", "five business days"],
+    "notes": "Grounded in 07_Risk_And_Reporting/pattern_day_trader.md"
+  },
+  {
+    "id": "q10",
+    "question": "What is the initial margin requirement under Regulation T and who administers it?",
+    "expected": "Regulation T is administered by the Federal Reserve Board and sets an initial margin requirement of generally 50 percent of the purchase price of marginable securities.",
+    "must_include": ["Regulation T", "50 percent", "Federal Reserve"],
+    "notes": "Grounded in 07_Risk_And_Reporting/margin_requirements.md"
+  },
+  {
+    "id": "q11",
+    "question": "What is the Order Protection Rule under Regulation NMS?",
+    "expected": "The Order Protection Rule (Rule 611) of Regulation NMS requires trading centers to avoid trade-throughs by not executing at prices inferior to protected quotations displayed by other trading centers.",
+    "must_include": ["trade-through", "611", "protected quotation"],
+    "notes": "Grounded in 05_Market_Structure/reg_nms.md"
+  },
+  {
+    "id": "q12",
+    "question": "What format must broker-dealers use to store records electronically under SEC Rule 17a-4?",
+    "expected": "Under SEC Rule 17a-4 records stored on electronic media must be kept in a non-rewriteable, non-erasable WORM (write once, read many) format.",
+    "must_include": ["WORM", "non-rewriteable", "17a-4"],
+    "notes": "Grounded in 02_SEC_Regulations/sec_rule_17a4.md"
+  },
+  {
+    "id": "q13",
+    "question": "What does FINRA Rule 3110 require regarding supervision?",
+    "expected": "FINRA Rule 3110 requires each firm to establish and maintain a supervisory system reasonably designed to achieve compliance, designate registered principals, conduct annual office inspections, and maintain written supervisory procedures.",
+    "must_include": ["supervisory system", "written supervisory procedures", "3110"],
+    "notes": "Grounded in 01_FINRA_Rules/finra_3110_supervision.md"
+  },
+  {
+    "id": "q14",
+    "question": "In FIX, what MsgType identifies an ExecutionReport and what does OrdStatus value 2 mean?",
+    "expected": "An ExecutionReport is MsgType (tag 35) value 8, and OrdStatus (tag 39) value 2 means the order is Filled.",
+    "must_include": ["8", "OrdStatus", "Filled"],
+    "notes": "Grounded in 03_FIX_Protocol/fix_execution_report.md"
+  },
+  {
+    "id": "q15",
+    "question": "What triggers the short sale circuit breaker under Regulation SHO Rule 201, and what restriction applies once triggered?",
+    "expected": "Regulation SHO Rule 201, the alternative uptick rule, is triggered when a covered security declines 10 percent or more from the prior day's close; short sales may then only execute at a price above the current national best bid for that day and the next day.",
+    "must_include": ["10 percent", "alternative uptick", "national best bid"],
+    "notes": "Grounded in 05_Market_Structure/short_sale_circuit_breaker.md"
+  },
+  {
+    "id": "q16",
+    "question": "What is the gift limit under FINRA Rule 3220?",
+    "expected": "Under FINRA Rule 3220, a member or associated person may not give anything of value in excess of 100 dollars per year to any person where the payment relates to the recipient's employer's business.",
+    "must_include": ["100", "3220"],
+    "notes": "Grounded in 04_Compliance_Programs/gifts_and_entertainment.md"
+  },
+  {
+    "id": "q17",
+    "question": "What must a firm's anti-money laundering program include under FINRA Rule 3310?",
+    "expected": "Under FINRA Rule 3310 an AML program must have written policies to detect and report suspicious transactions, provide independent testing, designate an AML compliance officer, and provide ongoing training, consistent with the Bank Secrecy Act.",
+    "must_include": ["independent testing", "AML compliance officer", "Bank Secrecy Act"],
+    "notes": "Grounded in 01_FINRA_Rules/finra_3310_aml.md"
+  },
+  {
+    "id": "q18",
+    "question": "What is the within deadline to report TRACE-eligible secondary market transactions?",
+    "expected": "Firms must report TRACE-eligible secondary market transactions generally within 15 minutes of the time of execution.",
+    "must_include": ["TRACE", "15 minutes"],
+    "notes": "Grounded in 07_Risk_And_Reporting/trace_reporting.md"
+  },
+  {
+    "id": "q19",
+    "question": "What controls are commonly used to prevent the misuse of material nonpublic information?",
+    "expected": "Common controls include information barriers (ethical walls), restricted and watch lists, pre-clearance of employee personal trades, and surveillance of trading around material events.",
+    "must_include": ["information barriers", "restricted list", "pre-clearance"],
+    "notes": "Grounded in 04_Compliance_Programs/insider_trading_procedures.md"
+  },
+  {
+    "id": "q20",
+    "question": "What does Form CRS cover and what is its page limit for a standalone firm?",
+    "expected": "Form CRS is a plain-English relationship summary limited to two pages for a standalone broker-dealer or investment adviser; it covers services, fees and costs, conflicts of interest, the standard of conduct, and disciplinary history.",
+    "must_include": ["two pages", "plain English", "conflicts of interest"],
+    "notes": "Grounded in 02_SEC_Regulations/sec_form_crs.md"
   }
 ]

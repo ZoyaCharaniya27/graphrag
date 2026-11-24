@@ -16,9 +16,10 @@ import os
 from typing import Any, Dict, List, Optional
 
 from agent.vector_store import create_vector_store
-from benchmark import llm_runner, retrieval
+from benchmark import llm_runner, retrieval, scoring
 from benchmark.config import BenchmarkConfig
 from benchmark.questions import EvalQuestion, load_questions
+from benchmark.report import write_golden_report
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,14 @@ CSV_FIELDS = [
     "prompt_tokens",
     "completion_tokens",
     "total_tokens",
+    "score_f1",
+    "score_keyword_coverage",
+    "score_embedding_similarity",
+    "score_overall",
+    "score_llm_judge",
+    "missing_keywords",
     "answer",
+    "expected",
     "error",
 ]
 
@@ -108,8 +116,11 @@ async def _run_backend(
                 context = retrieval.build_context(outcome)
                 for model_name in config.llms:
                     gen = await llm_runner.generate(q.question, context, model_name)
+                    score = await _score(q, gen, config)
                     rows.append(
-                        _build_row(backend, mode, q, model_name, outcome, gen, context)
+                        _build_row(
+                            backend, mode, q, model_name, outcome, gen, context, score
+                        )
                     )
     finally:
         await store.close()
@@ -133,9 +144,30 @@ async def _retrieve(mode, store, embedding, question, config):
     return out
 
 
-def _build_row(backend, mode, q, model_name, outcome, gen, context) -> Dict[str, Any]:
+async def _score(q: EvalQuestion, gen, config: BenchmarkConfig):
+    """Score a generated answer against the golden reference. Never raises."""
+    if gen.error or not gen.answer:
+        return scoring.ScoreResult()
+    try:
+        result = await scoring.score_answer(
+            answer=gen.answer,
+            reference=q.expected,
+            must_include=q.must_include,
+            use_embedding=config.use_embedding_score,
+        )
+        if config.judge_model and q.expected:
+            result.llm_judge_score = await scoring.llm_judge(
+                q.question, gen.answer, q.expected, config.judge_model
+            )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Scoring failed for %s: %s", q.id, exc)
+        return scoring.ScoreResult()
+
+
+def _build_row(backend, mode, q, model_name, outcome, gen, context, score) -> Dict[str, Any]:
     errors = [e for e in (outcome.error, gen.error) if e]
-    return {
+    row = {
         "backend": backend,
         "mode": mode,
         "question_id": q.id,
@@ -150,14 +182,21 @@ def _build_row(backend, mode, q, model_name, outcome, gen, context) -> Dict[str,
         ),
         "total_tokens": gen.total_tokens if gen.total_tokens is not None else "",
         "answer": (gen.answer or "").replace("\r", " ").replace("\n", " "),
+        "expected": (q.expected or "").replace("\r", " ").replace("\n", " "),
         "error": "; ".join(errors),
     }
+    row.update(score.as_row())
+    return row
 
 
 def _write_csv(rows: List[Dict[str, Any]], output_path: str) -> None:
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        # restval="" fills any columns a partial row omits; extrasaction="ignore"
+        # protects against stray keys.
+        writer = csv.DictWriter(
+            f, fieldnames=CSV_FIELDS, restval="", extrasaction="ignore"
+        )
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
@@ -203,4 +242,12 @@ async def run_benchmark(config: BenchmarkConfig) -> str:
 
     _write_csv(rows, config.output_path)
     logger.info("Wrote %d rows to %s", len(rows), config.output_path)
+
+    # Golden-standard summary report alongside the CSV.
+    try:
+        report_path = write_golden_report(rows, config)
+        logger.info("Wrote golden report to %s", report_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to write golden report: %s", exc)
+
     return config.output_path

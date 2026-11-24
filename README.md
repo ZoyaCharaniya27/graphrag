@@ -149,11 +149,14 @@ ollama pull mistral                       # at least one LLM (or configure an AP
 # Install optional benchmark adapters (only needed for Qdrant/Chroma)
 pip install qdrant-client chromadb
 
-# Make sure documents are already ingested so the vector DB has chunks
-python -m ingestion.ingest --documents ./data
+# Generate the ~50-document evaluation corpus, then ingest it
+python data/generate_dataset.py                       # writes data/corpus/*.md (53 docs)
+python -m ingestion.ingest --documents ./data/corpus  # embed + load into the vector DB
 ```
 
-Questions live in `data/eval_questions.json` (edit or replace with your own).
+Questions live in `data/eval_questions.json`. Each has a **golden reference answer**
+(`expected`) and a `must_include` keyword list, both grounded in the generated corpus, so
+answers can be scored for accuracy — not just latency. Edit or replace with your own.
 
 ### 1. Vector DB comparison
 
@@ -208,8 +211,32 @@ python -m benchmark \
 | `generation_latency_ms` | LLM generation time |
 | `prompt_tokens`, `completion_tokens`, `total_tokens` | Token usage (blank if unreported) |
 | `num_context_chunks` | Chunks included in the shared context |
+| `score_f1` | Token-overlap F1 of the answer vs the golden reference |
+| `score_keyword_coverage` | Fraction of `must_include` keywords present in the answer |
+| `score_embedding_similarity` | Cosine similarity of answer vs golden reference embeddings |
+| `score_overall` | Composite accuracy (weighted blend of the three signals above) |
+| `score_llm_judge` | Optional LLM grade 0-1 (only with `--judge`) |
+| `missing_keywords` | Required keywords the answer omitted |
 | `answer` | Generated answer |
+| `expected` | Golden reference answer |
 | `error` | Any per-cell error (run continues on failure) |
+
+A **golden-standard summary** is also written to `results/golden_report.md`: average accuracy
+and latency broken down by LLM, by vector backend, and by retrieval mode, plus the
+best-scoring configuration and the lowest-scoring questions.
+
+### Golden-standard accuracy scoring
+
+Every generated answer is scored against the question's golden reference using three
+complementary signals, combined into `score_overall`:
+
+- **Token-F1** — word-level overlap with the reference (right content, no padding).
+- **Keyword coverage** — did the answer include the required facts (`must_include`)?
+- **Embedding similarity** — semantic closeness to the reference (handles paraphrasing).
+
+Optional, slower, more realistic: add `--judge mistral` (or any model) to also have an LLM
+grade each answer 1-5 against the reference (`score_llm_judge`). Use `--no-embedding-score`
+to skip the embedding signal for faster, fully offline scoring.
 
 ### Useful flags
 
@@ -224,6 +251,8 @@ python -m benchmark --help
 #   --text-weight FLOAT     (hybrid text weight 0-1, default 0.3)
 #   --load-from-pg          (copy pgvector chunks into the selected backend)
 #   --max-questions N       (quick run on first N questions)
+#   --judge MODEL           (also grade answers 1-5 with an LLM judge)
+#   --no-embedding-score    (skip embedding-similarity scoring)
 ```
 
 Relevant `.env` settings: `VECTOR_BACKEND`, `EMBEDDING_DIMENSION`, `QDRANT_PATH`,

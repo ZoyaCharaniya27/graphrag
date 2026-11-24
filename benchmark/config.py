@@ -23,6 +23,8 @@ class BenchmarkConfig:
     load_from_pg: bool
     max_questions: Optional[int] = None
     dimension: int = field(default=384)
+    use_embedding_score: bool = True
+    judge_model: Optional[str] = None
 
 
 def _split_csv(value: Optional[str]) -> List[str]:
@@ -57,4 +59,6 @@ def resolve_config(args) -> BenchmarkConfig:
         load_from_pg=args.load_from_pg,
         max_questions=args.max_questions,
         dimension=dimension,
+        use_embedding_score=not args.no_embedding_score,
+        judge_model=args.judge,
     )

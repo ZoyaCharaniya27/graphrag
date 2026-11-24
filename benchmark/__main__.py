@@ -76,6 +76,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Only use the first N questions (useful for quick runs).",
     )
     p.add_argument(
+        "--no-embedding-score",
+        action="store_true",
+        help="Skip embedding-similarity scoring (faster; uses only F1 + keyword coverage).",
+    )
+    p.add_argument(
+        "--judge",
+        default=None,
+        metavar="MODEL",
+        help="Optional LLM model name to grade each answer 1-5 against the golden "
+        "reference (adds a score_llm_judge column). Off by default.",
+    )
+    p.add_argument(
         "--log-level",
         default="INFO",
         help="Logging level (default: INFO).",
