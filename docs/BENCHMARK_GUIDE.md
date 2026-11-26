@@ -336,11 +336,13 @@ to a known reference ("golden") answer.
 
 ### The dataset — `data/generate_dataset.py`
 
-Running `python data/generate_dataset.py` writes ~50 deterministic Markdown documents under
-`data/corpus/` across seven compliance/markets categories (FINRA rules, SEC regulations, FIX
-protocol, compliance programs, market structure, registration/licensing, risk/reporting).
-The content is fixed, so the golden answers can be written against the exact text. Ingest it
-with `python -m ingestion.ingest --documents ./data/corpus`.
+Running `python data/generate_dataset.py` writes ~100 deterministic Markdown documents (111)
+under `data/corpus/` across nine compliance/markets categories (FINRA rules, SEC regulations,
+FIX protocol, compliance programs, market structure, registration/licensing, risk/reporting,
+clearing/settlement, and ethics/conduct). The content is fixed and needs no network access or
+external LLM API keys, so the golden answers can be written against the exact text. Ingest it
+with `python -m ingestion.ingest --documents ./data/corpus`. The first 53 documents are
+unchanged so evaluation questions q1-q20 stay grounded; the remainder expand coverage (q21+).
 
 ### The golden questions — `data/eval_questions.json`
 
@@ -443,7 +445,7 @@ returns an empty list, which the benchmark records and moves on.
 **Added (new files):**
 - `agent/vector_store/` — the interface, three adapters, and the factory.
 - `benchmark/` — the runner and its helpers, including `scoring.py` and `report.py`.
-- `data/generate_dataset.py` — generates the ~50-document evaluation corpus.
+- `data/generate_dataset.py` — generates the ~100-document evaluation corpus.
 - `data/eval_questions.json` — golden questions with reference answers + required keywords.
 - `sql/migrations/001_fix_hybrid_search_float_type.sql` — the type-fix migration.
 - `.kiro/specs/vectordb-benchmark/` — the requirements/design/tasks spec.

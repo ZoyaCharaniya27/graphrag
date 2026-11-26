@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Generate a ~50-document compliance/markets knowledge base for benchmarking.
+Generate a ~100-document compliance/markets knowledge base for benchmarking.
 
-The content is deterministic and self-contained so the golden answers in
+The content is deterministic, self-contained, and requires no network access or external
+LLM API keys, so it runs cleanly on a local/Linux/GPU machine. The golden answers in
 ``data/eval_questions.json`` are grounded in the exact text produced here. Running this
 script writes Markdown files under ``data/corpus/`` (organized by category). It does not
 touch any database; feed the output to the normal ingestion pipeline:
@@ -10,7 +11,11 @@ touch any database; feed the output to the normal ingestion pipeline:
     python data/generate_dataset.py
     python -m ingestion.ingest --documents ./data/corpus
 
-Re-running overwrites the corpus deterministically.
+Re-running overwrites the corpus deterministically. The corpus spans nine categories
+(FINRA rules, SEC regulations, FIX protocol, compliance programs, market structure,
+registration/licensing, risk/reporting, clearing/settlement, and ethics/conduct). The
+first 53 documents are unchanged so that evaluation questions q1-q20 remain grounded; the
+remainder expand coverage for a larger comparative benchmark.
 """
 
 import os
@@ -574,6 +579,570 @@ records and information under Regulation S-P and to maintain reasonable supervis
 Expected practices include governance and risk assessment, access controls, data encryption,
 vendor management, incident response planning, and staff training. A cybersecurity incident
 affecting customer information may trigger notification obligations.""",
+    ),
+
+    # ================================================================
+    # Documents added to expand the corpus to ~100 for the benchmark.
+    # Everything above this line is unchanged so q1-q20 stay grounded.
+    # ================================================================
+
+    # ---------------- 01_FINRA_Rules (additions) ----------------
+    (
+        "01_FINRA_Rules",
+        "finra_2210_communications.md",
+        "FINRA Rule 2210 - Communications with the Public",
+        """FINRA Rule 2210 governs member communications with the public and sorts them into
+three categories: retail communication, correspondence, and institutional communication. A
+retail communication is distributed to more than 25 retail investors within any 30 calendar-day
+period. Communications must be fair and balanced, may not be misleading, and must be approved by
+a registered principal before use where required. Certain retail communications must be filed
+with FINRA's Advertising Regulation Department.""",
+    ),
+    (
+        "01_FINRA_Rules",
+        "finra_2267_bcp_disclosure.md",
+        "FINRA Rule 2267 - Investor Education and Protection",
+        """FINRA Rule 2267 requires members to provide customers, once each calendar year, with
+the FINRA BrokerCheck hotline number, the FINRA website address, and a statement regarding the
+availability of an investor brochure that describes BrokerCheck. This helps customers verify the
+background and disciplinary history of firms and associated persons.""",
+    ),
+    (
+        "01_FINRA_Rules",
+        "finra_3240_borrowing.md",
+        "FINRA Rule 3240 - Borrowing From or Lending to Customers",
+        """FINRA Rule 3240 generally prohibits a registered person from borrowing money from or
+lending money to a customer unless the firm has written procedures permitting it and the
+arrangement meets a permitted condition, such as a family relationship or a lending relationship
+with a financial institution in the business of lending. The arrangement must usually be
+pre-approved in writing by the firm.""",
+    ),
+    (
+        "01_FINRA_Rules",
+        "finra_4210_margin.md",
+        "FINRA Rule 4210 - Margin Requirements",
+        """FINRA Rule 4210 sets maintenance margin requirements for securities carried in a
+customer margin account. The general maintenance requirement is 25 percent of the current market
+value of long securities. The rule also addresses day-trading margin, pattern day traders, and
+special maintenance requirements for concentrated or volatile positions.""",
+    ),
+    (
+        "01_FINRA_Rules",
+        "finra_4530_reporting.md",
+        "FINRA Rule 4530 - Reporting Requirements",
+        """FINRA Rule 4530 requires members to report specified events to FINRA, such as findings
+that the firm or an associated person violated securities laws, certain written customer
+complaints, and specified disciplinary actions. Many events must be reported within 30 calendar
+days after the member knows or should have known of their existence, and statistical complaint
+information is reported quarterly.""",
+    ),
+    (
+        "01_FINRA_Rules",
+        "finra_2360_options.md",
+        "FINRA Rule 2360 - Options",
+        """FINRA Rule 2360 governs options trading by members, including account approval, position
+and exercise limits, and the delivery of the options disclosure document (ODD) to customers at or
+before approval of an options account. Firms must have reasonable grounds to believe options
+trading is appropriate for the customer based on the customer's investment objectives and
+experience.""",
+    ),
+    (
+        "01_FINRA_Rules",
+        "finra_2124_net_transactions.md",
+        "FINRA Rule 2124 - Net Transactions with Customers",
+        """FINRA Rule 2124 permits a member to execute net transactions with a customer only with
+the customer's consent. A net transaction is a principal trade in which the member, after having
+received an order, buys or sells the security and reports to the customer a price that is net of
+the member's mark-up or mark-down. Firms must obtain the required consent and keep records of it.""",
+    ),
+    (
+        "01_FINRA_Rules",
+        "finra_3260_discretionary.md",
+        "FINRA Rule 3260 - Discretionary Accounts",
+        """FINRA Rule 3260 prohibits a member or registered person from exercising discretionary
+power in a customer's account unless the customer has given prior written authorization and the
+account has been accepted in writing by the firm. Each discretionary order must be identified as
+such, and discretionary accounts must be reviewed at frequent intervals.""",
+    ),
+
+    # ---------------- 02_SEC_Regulations (additions) ----------------
+    (
+        "02_SEC_Regulations",
+        "sec_reg_atdirect.md",
+        "SEC Regulation ATS - Alternative Trading Systems",
+        """SEC Regulation ATS establishes the framework under which an alternative trading system
+may operate as a registered broker-dealer rather than a national securities exchange. An ATS must
+file Form ATS, meet fair access requirements when its volume in a security crosses specified
+thresholds, and comply with recordkeeping and systems requirements. NMS stock ATSs must also file
+Form ATS-N disclosing operations and conflicts.""",
+    ),
+    (
+        "02_SEC_Regulations",
+        "sec_rule_606_order_routing.md",
+        "SEC Rule 606 - Order Routing Disclosure",
+        """SEC Rule 606 requires broker-dealers to publish quarterly reports on their routing of
+non-directed customer orders in NMS securities, including the venues to which orders were routed
+and any payment for order flow arrangements. On customer request, firms must also disclose the
+specific routing of that customer's orders for the prior six months.""",
+    ),
+    (
+        "02_SEC_Regulations",
+        "sec_rule_605_execution_quality.md",
+        "SEC Rule 605 - Execution Quality Statistics",
+        """SEC Rule 605 requires market centers that trade NMS securities to make monthly,
+standardized, publicly available reports on execution quality. The reports include statistics such
+as effective spreads, realized spreads, speed of execution, and price improvement, enabling
+comparison of execution quality across venues.""",
+    ),
+    (
+        "02_SEC_Regulations",
+        "sec_reg_fd.md",
+        "SEC Regulation FD - Fair Disclosure",
+        """SEC Regulation FD (Fair Disclosure) prohibits selective disclosure of material nonpublic
+information by issuers to analysts or investors. When an issuer discloses such information, it must
+do so broadly and publicly, simultaneously for intentional disclosures or promptly for unintentional
+ones, so that all investors have equal access to the information.""",
+    ),
+    (
+        "02_SEC_Regulations",
+        "sec_rule_144.md",
+        "SEC Rule 144 - Resale of Restricted Securities",
+        """SEC Rule 144 provides a safe harbor for the public resale of restricted and control
+securities. Conditions include a holding period of at least six months for securities of a reporting
+company (one year for a non-reporting company), the availability of current public information,
+volume limitations for affiliates, and, for affiliates, the filing of Form 144 when sales exceed
+specified thresholds.""",
+    ),
+    (
+        "02_SEC_Regulations",
+        "sec_reg_d.md",
+        "SEC Regulation D - Private Placements",
+        """SEC Regulation D provides exemptions from registration for certain private offerings of
+securities. Rule 506(b) permits raising an unlimited amount from accredited investors and up to 35
+non-accredited but sophisticated investors without general solicitation. Rule 506(c) permits general
+solicitation provided all purchasers are accredited investors and the issuer takes reasonable steps
+to verify accredited status.""",
+    ),
+    (
+        "02_SEC_Regulations",
+        "sec_reg_m.md",
+        "SEC Regulation M - Anti-Manipulation",
+        """SEC Regulation M is designed to prevent manipulation by participants in a securities
+offering. It restricts the ability of underwriters, issuers, and other distribution participants to
+bid for or purchase the offered security during a restricted period. Rule 101 and Rule 102 govern
+activities by distribution participants and issuers, and Rule 104 addresses permissible stabilizing
+bids.""",
+    ),
+    (
+        "02_SEC_Regulations",
+        "sec_whistleblower.md",
+        "SEC Whistleblower Program",
+        """The SEC whistleblower program, established under the Dodd-Frank Act, pays monetary awards
+to eligible individuals who voluntarily provide original information that leads to a successful
+enforcement action with sanctions over 1,000,000 dollars. Awards range from 10 percent to 30 percent
+of the monetary sanctions collected. The program also protects whistleblowers from retaliation by
+their employers.""",
+    ),
+
+    # ---------------- 03_FIX_Protocol (additions) ----------------
+    (
+        "03_FIX_Protocol",
+        "fix_order_types.md",
+        "FIX Order Types (OrdType tag 40)",
+        """In the FIX protocol, the OrdType field (tag 40) specifies the order type. Common values
+are 1 for Market, 2 for Limit, 3 for Stop, and 4 for Stop Limit. A Limit order requires a Price (tag
+44). A Stop order requires a StopPx (tag 99). The TimeInForce field (tag 59) qualifies how long the
+order remains active, for example 0 for Day and 1 for Good Till Cancel.""",
+    ),
+    (
+        "03_FIX_Protocol",
+        "fix_market_data.md",
+        "FIX Market Data Messages",
+        """In the FIX protocol, a MarketDataRequest is MsgType V and subscribes to quotes or trades.
+The venue responds with a MarketDataSnapshotFullRefresh (MsgType W) containing the full book snapshot
+or a MarketDataIncrementalRefresh (MsgType X) containing updates. MDEntryType (tag 269) distinguishes
+entry kinds, for example 0 for Bid, 1 for Offer, and 2 for Trade.""",
+    ),
+    (
+        "03_FIX_Protocol",
+        "fix_reject_messages.md",
+        "FIX Reject and Business Reject",
+        """In the FIX protocol, a session-level Reject (MsgType 3) indicates a message could not be
+processed due to a session-level rule violation, such as an invalid tag. A BusinessMessageReject
+(MsgType j) indicates an application-level rejection, carrying RefMsgType (tag 372) and a
+BusinessRejectReason (tag 380) that explains why the message was rejected.""",
+    ),
+    (
+        "03_FIX_Protocol",
+        "fix_versions.md",
+        "FIX Protocol Versions",
+        """The FIX protocol has evolved through several versions. FIX 4.2 and FIX 4.4 remain widely
+deployed for order routing. FIX 5.0 introduced the FIXT transport layer, which separates the session
+layer from the application layer so that the application version can evolve independently. The
+BeginString (tag 8) identifies the session protocol version, such as FIX.4.4 or FIXT.1.1.""",
+    ),
+    (
+        "03_FIX_Protocol",
+        "fix_checksum.md",
+        "FIX Checksum Calculation (tag 10)",
+        """In the FIX protocol, the CheckSum field (tag 10) is always the final field of a message. It
+is computed by summing the ASCII values of all bytes in the message up to but not including the
+checksum field, taking the result modulo 256, and formatting it as a three-digit value. The checksum
+lets the receiver detect transmission corruption.""",
+    ),
+
+    # ---------------- 04_Compliance_Programs (additions) ----------------
+    (
+        "04_Compliance_Programs",
+        "best_interest_disclosure.md",
+        "Reg BI Disclosure Obligation in Practice",
+        """The Disclosure Obligation of Regulation Best Interest requires a broker-dealer to provide
+retail customers, in writing and before or at the time of a recommendation, full and fair disclosure
+of material facts about the scope and terms of the relationship, including the capacity in which the
+firm is acting, material fees and costs, and the type and scope of services, as well as material
+limitations on the securities or investment strategies that may be recommended.""",
+    ),
+    (
+        "04_Compliance_Programs",
+        "conflict_of_interest_obligation.md",
+        "Reg BI Conflict of Interest Obligation",
+        """The Conflict of Interest Obligation of Regulation Best Interest requires a broker-dealer to
+establish, maintain, and enforce written policies and procedures reasonably designed to identify and
+at a minimum disclose, or eliminate, conflicts of interest. Firms must mitigate conflicts that create
+an incentive for associated persons to place their interest ahead of the retail customer's interest,
+and must eliminate sales contests and quotas based on specific securities within a limited period.""",
+    ),
+    (
+        "04_Compliance_Programs",
+        "aml_customer_identification.md",
+        "AML Customer Identification Program (CIP)",
+        """Under the Bank Secrecy Act and its implementing rules, broker-dealers must maintain a written
+Customer Identification Program (CIP) as part of their AML program. The CIP must collect, at a minimum,
+the customer's name, date of birth, address, and an identification number, and must include
+risk-based procedures to verify identity and to check customers against government lists. Records of
+the information used to verify identity must be retained.""",
+    ),
+    (
+        "04_Compliance_Programs",
+        "aml_cdd_beneficial_ownership.md",
+        "AML Customer Due Diligence and Beneficial Ownership",
+        """The Customer Due Diligence (CDD) rule requires covered financial institutions to identify and
+verify the beneficial owners of legal entity customers. A beneficial owner includes each individual who
+owns 25 percent or more of the equity interests of the entity and a single individual with significant
+responsibility to control or manage the entity. Firms must also understand the nature and purpose of
+customer relationships and conduct ongoing monitoring.""",
+    ),
+    (
+        "04_Compliance_Programs",
+        "books_records_requirements.md",
+        "Books and Records Requirements",
+        """Broker-dealers must make and keep current detailed books and records under SEC Rules 17a-3 and
+17a-4 and FINRA Rule 4511. Required records include blotters, ledgers, order tickets, trade
+confirmations, account records, and communications. Rule 17a-3 specifies what records must be created,
+and Rule 17a-4 specifies how long they must be retained and in what format.""",
+    ),
+    (
+        "04_Compliance_Programs",
+        "trade_confirmations.md",
+        "Trade Confirmations (SEC Rule 10b-10)",
+        """SEC Rule 10b-10 requires broker-dealers to give or send a written confirmation to a customer at
+or before completion of a securities transaction. The confirmation must disclose key terms such as the
+date and time of the transaction, the identity and quantity of the security, the price, whether the firm
+acted as agent or principal, and the commission or mark-up where required.""",
+    ),
+    (
+        "04_Compliance_Programs",
+        "regulation_bi_compliance_obligation.md",
+        "Reg BI Compliance Obligation",
+        """The Compliance Obligation of Regulation Best Interest requires a broker-dealer to establish,
+maintain, and enforce written policies and procedures reasonably designed to achieve compliance with
+Regulation Best Interest as a whole. This is distinct from the policies required specifically for
+conflicts of interest and focuses on the firm's overall system for complying with the rule.""",
+    ),
+
+    # ---------------- 05_Market_Structure (additions) ----------------
+    (
+        "05_Market_Structure",
+        "nbbo.md",
+        "National Best Bid and Offer (NBBO)",
+        """The National Best Bid and Offer (NBBO) is the highest available bid price and the lowest
+available offer price for an NMS security across all exchanges and reporting market centers. The NBBO is
+disseminated through the consolidated quotation system and serves as a key reference point for best
+execution analysis and for the Order Protection Rule under Regulation NMS.""",
+    ),
+    (
+        "05_Market_Structure",
+        "payment_for_order_flow.md",
+        "Payment for Order Flow",
+        """Payment for order flow is compensation a broker-dealer receives for routing customer orders to a
+particular market maker or venue for execution. The practice is legal but creates a conflict of interest
+and must be disclosed, including in SEC Rule 606 order-routing reports and in new-account and annual
+disclosures. Firms must still satisfy their best execution obligations regardless of such payments.""",
+    ),
+    (
+        "05_Market_Structure",
+        "odd_lots.md",
+        "Round Lots, Odd Lots, and Mixed Lots",
+        """In US equity markets a round lot is traditionally 100 shares. An odd lot is a quantity smaller
+than a round lot, and a mixed lot is a quantity larger than a round lot that is not a whole multiple of
+one. Historically odd-lot orders were not reflected in the public quotation, though odd-lot trades are
+reported to the consolidated tape and odd-lot data has been incorporated into market data feeds.""",
+    ),
+    (
+        "05_Market_Structure",
+        "tick_size.md",
+        "Tick Size and the Sub-Penny Rule",
+        """Tick size is the minimum price increment at which a security may be quoted or traded. Under
+Regulation NMS Rule 612, the Sub-Penny Rule, market participants generally may not display, rank, or
+accept quotations in NMS stocks priced at one dollar or more in an increment smaller than one cent.
+Stocks priced below one dollar may be quoted in smaller increments.""",
+    ),
+    (
+        "05_Market_Structure",
+        "market_on_close.md",
+        "Market-on-Close and Closing Auctions",
+        """A market-on-close (MOC) order is an order to buy or sell at the official closing price,
+executed in the primary exchange's closing auction. Closing auctions aggregate buy and sell interest to
+establish a single closing price and are a major source of end-of-day liquidity. Exchanges set cut-off
+times after which MOC orders generally may not be entered or canceled.""",
+    ),
+    (
+        "05_Market_Structure",
+        "trade_reporting_facility.md",
+        "Trade Reporting Facilities (TRFs)",
+        """Trades executed away from an exchange, such as those in dark pools or internalized by a
+broker-dealer, are reported to a FINRA Trade Reporting Facility (TRF). The TRF disseminates these
+over-the-counter trades to the consolidated tape. Firms generally must report such trades as soon as
+practicable and within the time limits specified by FINRA rules, typically within 10 seconds of
+execution for most transactions.""",
+    ),
+
+    # ---------------- 06_Registration_Licensing (additions) ----------------
+    (
+        "06_Registration_Licensing",
+        "series_24.md",
+        "Series 24 - General Securities Principal",
+        """The Series 24 exam, the General Securities Principal Qualification Examination, qualifies an
+individual to supervise and manage branch activities such as trading, underwriting, and the conduct of
+registered representatives. A Series 24 principal is responsible for approving communications,
+supervising sales practices, and overseeing compliance with applicable rules.""",
+    ),
+    (
+        "06_Registration_Licensing",
+        "series_79.md",
+        "Series 79 - Investment Banking Representative",
+        """The Series 79 exam qualifies an individual to perform investment banking activities, including
+advising on or facilitating debt and equity offerings and mergers and acquisitions. Like other
+representative-level exams, it requires first passing the Securities Industry Essentials (SIE) exam, with
+the Series 79 serving as the specialized top-off qualification.""",
+    ),
+    (
+        "06_Registration_Licensing",
+        "series_99.md",
+        "Series 99 - Operations Professional",
+        """The Series 99 exam, the Operations Professional Qualification Examination, is required for
+certain covered operations personnel at member firms whose functions include activities such as account
+transfers, settlement, and recordkeeping. It is intended to ensure that operations professionals
+understand the regulatory framework relevant to their back-office responsibilities.""",
+    ),
+    (
+        "06_Registration_Licensing",
+        "series_65.md",
+        "Series 65 - Investment Adviser Representative",
+        """The Series 65 exam, the Uniform Investment Adviser Law Examination, qualifies an individual to
+act as an investment adviser representative. It covers topics including economics, investment vehicles,
+client recommendations, and the legal and regulatory framework for investment advisers, including
+fiduciary duty under the Investment Advisers Act and state law.""",
+    ),
+    (
+        "06_Registration_Licensing",
+        "statutory_disqualification.md",
+        "Statutory Disqualification",
+        """A person is subject to statutory disqualification from association with a member firm if they
+have been expelled or barred by a self-regulatory organization, have had a securities registration
+revoked, have been convicted of certain crimes within the prior ten years, or have made certain false
+statements to regulators. A firm seeking to employ such a person generally must file an application
+through FINRA's eligibility process.""",
+    ),
+
+    # ---------------- 07_Risk_And_Reporting (additions) ----------------
+    (
+        "07_Risk_And_Reporting",
+        "reg_t_free_riding.md",
+        "Free-Riding and Settlement",
+        """Free-riding occurs when a customer buys a security in a cash account and sells it before paying
+for the purchase with settled funds. Regulation T prohibits free-riding, and a cash account that engages
+in it may be subject to a 90-day restriction requiring the customer to have sufficient settled funds in
+the account before purchases are executed.""",
+    ),
+    (
+        "07_Risk_And_Reporting",
+        "sipc_protection.md",
+        "SIPC Protection",
+        """The Securities Investor Protection Corporation (SIPC) protects customers of a failed broker-dealer
+by returning cash and securities, up to 500,000 dollars per customer, of which up to 250,000 dollars may
+be for cash claims. SIPC protection covers the custody risk of a broker-dealer failure; it does not
+protect against a decline in the market value of investments.""",
+    ),
+    (
+        "07_Risk_And_Reporting",
+        "form_bd.md",
+        "Form BD - Broker-Dealer Registration",
+        """Form BD is the Uniform Application for Broker-Dealer Registration filed with the SEC through the
+Central Registration Depository to register as a broker-dealer. It captures information about the firm's
+ownership, control persons, business activities, and any disciplinary history. Material changes must be
+kept current through amendments.""",
+    ),
+    (
+        "07_Risk_And_Reporting",
+        "focus_report.md",
+        "FOCUS Report",
+        """The FOCUS Report (Financial and Operational Combined Uniform Single report) is a periodic report
+that broker-dealers must file with their regulators containing financial and operational data, including
+the net capital computation. Most firms file FOCUS reports monthly or quarterly depending on their size
+and activities, allowing regulators to monitor financial condition.""",
+    ),
+    (
+        "07_Risk_And_Reporting",
+        "regulation_sci.md",
+        "Regulation SCI",
+        """SEC Regulation SCI (Systems Compliance and Integrity) applies to certain key market participants
+such as exchanges, clearing agencies, and large ATSs. It requires them to have policies and procedures to
+ensure their technology systems have adequate capacity, integrity, resiliency, and security, to take
+corrective action on systems issues, and to notify the SEC of significant systems events.""",
+    ),
+    (
+        "07_Risk_And_Reporting",
+        "stress_testing.md",
+        "Stress Testing and Capital Adequacy",
+        """Stress testing evaluates how a firm's capital and liquidity would withstand severe but plausible
+adverse scenarios, such as sharp market declines, funding shortfalls, or counterparty defaults. For
+broker-dealers, stress testing complements the Net Capital Rule and liquidity risk management by helping
+firms identify vulnerabilities before they threaten customers or counterparties.""",
+    ),
+    (
+        "07_Risk_And_Reporting",
+        "position_limits.md",
+        "Position and Exercise Limits",
+        """Position limits cap the number of option contracts on the same side of the market that a single
+investor or group acting in concert may hold in a given underlying security. Exercise limits cap how many
+contracts may be exercised within a set number of business days. These limits are designed to prevent any
+single participant from exerting undue influence or manipulating the underlying market.""",
+    ),
+
+    # ---------------- 08_Clearing_Settlement (new category) ----------------
+    (
+        "08_Clearing_Settlement",
+        "dtcc_overview.md",
+        "DTCC and Central Clearing",
+        """The Depository Trust and Clearing Corporation (DTCC) provides clearing, settlement, and custody
+services for US securities markets through subsidiaries. Its subsidiary the Depository Trust Company (DTC)
+acts as the central securities depository holding securities in book-entry form, while the National
+Securities Clearing Corporation (NSCC) clears and settles broker-to-broker equity trades.""",
+    ),
+    (
+        "08_Clearing_Settlement",
+        "nscc_cns.md",
+        "NSCC and Continuous Net Settlement",
+        """The National Securities Clearing Corporation (NSCC) uses Continuous Net Settlement (CNS) to net
+each member's obligations in a security down to a single net long or short position per settlement day.
+NSCC acts as the central counterparty, becoming the buyer to every seller and the seller to every buyer,
+which reduces counterparty risk and the number of deliveries required.""",
+    ),
+    (
+        "08_Clearing_Settlement",
+        "novation.md",
+        "Novation and the Central Counterparty",
+        """Novation is the legal process by which a central counterparty (CCP) interposes itself between the
+two original trade counterparties, replacing the single contract between them with two contracts, one
+between each party and the CCP. After novation, each party faces the CCP rather than the original
+counterparty, which concentrates and manages counterparty credit risk.""",
+    ),
+    (
+        "08_Clearing_Settlement",
+        "settlement_fails.md",
+        "Settlement Fails and Buy-Ins",
+        """A settlement fail occurs when a party does not deliver securities or pay for them by the
+settlement date. Persistent fails may be addressed through a buy-in, in which the receiving party
+purchases the undelivered securities in the market and charges any additional cost to the failing party.
+Regulation SHO imposes close-out requirements for certain fails to deliver.""",
+    ),
+    (
+        "08_Clearing_Settlement",
+        "margin_at_ccp.md",
+        "Initial and Variation Margin at a CCP",
+        """A central counterparty collects two main types of margin from its clearing members. Initial margin
+is collateral posted to cover potential future exposure over the time it would take to close out a
+defaulting member's positions. Variation margin is collected or paid daily to settle the change in market
+value of open positions, preventing losses from accumulating.""",
+    ),
+    (
+        "08_Clearing_Settlement",
+        "default_waterfall.md",
+        "CCP Default Waterfall",
+        """A central counterparty manages a member default through a default waterfall, the ordered sequence
+of financial resources used to cover losses. The typical order is the defaulting member's initial margin
+and default fund contribution first, then the CCP's own contribution (skin in the game), then the
+mutualized default fund contributions of non-defaulting members, and finally any assessment powers.""",
+    ),
+
+    # ---------------- 09_Ethics_Conduct (new category) ----------------
+    (
+        "09_Ethics_Conduct",
+        "fiduciary_duty.md",
+        "Fiduciary Duty of Investment Advisers",
+        """Under the Investment Advisers Act, an investment adviser owes a fiduciary duty to its clients,
+comprising a duty of care and a duty of loyalty. The duty of care requires providing advice in the
+client's best interest, seeking best execution, and providing ongoing advice and monitoring as agreed.
+The duty of loyalty requires the adviser not to place its own interests ahead of the client's and to
+fully and fairly disclose material conflicts of interest.""",
+    ),
+    (
+        "09_Ethics_Conduct",
+        "churning.md",
+        "Churning",
+        """Churning is excessive trading in a customer's account by a broker who has control over the account,
+carried out primarily to generate commissions rather than to benefit the customer. It violates
+anti-fraud provisions and the quantitative suitability obligation. Indicators include a high turnover
+rate and a high cost-to-equity ratio relative to the customer's objectives.""",
+    ),
+    (
+        "09_Ethics_Conduct",
+        "front_running.md",
+        "Front-Running",
+        """Front-running is the prohibited practice of trading a security or related option for one's own
+account while taking advantage of advance knowledge of a pending customer or block order that is likely to
+move the market. It breaches the duty owed to the customer and market and is addressed by FINRA rules
+prohibiting trading ahead of customer orders and block transactions.""",
+    ),
+    (
+        "09_Ethics_Conduct",
+        "market_manipulation.md",
+        "Market Manipulation",
+        """Market manipulation includes schemes intended to deceive investors by artificially affecting the
+price or volume of a security. Examples include spoofing, which is placing orders with the intent to
+cancel before execution to create a false impression of demand, layering, wash trades between accounts
+under common control, and pump-and-dump schemes. Such conduct violates anti-fraud provisions of the
+securities laws.""",
+    ),
+    (
+        "09_Ethics_Conduct",
+        "selling_away.md",
+        "Selling Away",
+        """Selling away is the prohibited practice in which a registered person participates in a securities
+transaction outside the regular course or scope of their association with the firm without providing the
+required prior written notice and, where applicable, obtaining firm approval. It is addressed by the
+private securities transaction rule and undermines the firm's supervision of the person's activities.""",
+    ),
+    (
+        "09_Ethics_Conduct",
+        "code_of_ethics.md",
+        "Code of Ethics (Advisers Act Rule 204A-1)",
+        """Under Rule 204A-1 of the Investment Advisers Act, a registered investment adviser must adopt a
+written code of ethics that sets standards of business conduct, requires compliance with federal
+securities laws, and requires access persons to report their personal securities holdings and
+transactions periodically. The code must also require access persons to obtain pre-approval for certain
+investments, such as initial public offerings and private placements.""",
     ),
 ]
 

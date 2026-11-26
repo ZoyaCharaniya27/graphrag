@@ -138,5 +138,131 @@
     "expected": "Form CRS is a plain-English relationship summary limited to two pages for a standalone broker-dealer or investment adviser; it covers services, fees and costs, conflicts of interest, the standard of conduct, and disciplinary history.",
     "must_include": ["two pages", "plain English", "conflicts of interest"],
     "notes": "Grounded in 02_SEC_Regulations/sec_form_crs.md"
+  },
+  {
+    "id": "q21",
+    "question": "Under FINRA Rule 2210, what defines a retail communication?",
+    "expected": "Under FINRA Rule 2210 a retail communication is any communication distributed or made available to more than 25 retail investors within any 30 calendar-day period; the three categories are retail communication, correspondence, and institutional communication.",
+    "must_include": ["25 retail investors", "30 calendar-day", "2210"],
+    "notes": "Grounded in 01_FINRA_Rules/finra_2210_communications.md"
+  },
+  {
+    "id": "q22",
+    "question": "What does SEC Rule 605 require market centers to report?",
+    "expected": "SEC Rule 605 requires market centers trading NMS securities to publish monthly, standardized, public reports on execution quality, including statistics such as effective spreads, realized spreads, speed of execution, and price improvement.",
+    "must_include": ["605", "execution quality", "effective spread"],
+    "notes": "Grounded in 02_SEC_Regulations/sec_rule_605_execution_quality.md"
+  },
+  {
+    "id": "q23",
+    "question": "What does SEC Rule 606 require broker-dealers to disclose about order routing?",
+    "expected": "SEC Rule 606 requires broker-dealers to publish quarterly reports on their routing of non-directed customer NMS orders, including the venues used and any payment for order flow, and on request to disclose a customer's specific order routing for the prior six months.",
+    "must_include": ["606", "order routing", "payment for order flow"],
+    "notes": "Grounded in 02_SEC_Regulations/sec_rule_606_order_routing.md"
+  },
+  {
+    "id": "q24",
+    "question": "What is the holding period under SEC Rule 144 for restricted securities of a reporting company?",
+    "expected": "Under SEC Rule 144 the holding period for restricted securities of a reporting company is at least six months (one year for a non-reporting company), along with conditions such as current public information and, for affiliates, volume limits and Form 144 filing.",
+    "must_include": ["Rule 144", "six months", "restricted"],
+    "notes": "Grounded in 02_SEC_Regulations/sec_rule_144.md"
+  },
+  {
+    "id": "q25",
+    "question": "Under SEC Regulation D Rule 506(b), how many non-accredited investors may participate and is general solicitation allowed?",
+    "expected": "Under Regulation D Rule 506(b) an issuer may raise an unlimited amount from accredited investors and up to 35 non-accredited but sophisticated investors, and general solicitation is not permitted; Rule 506(c) permits general solicitation but requires all purchasers to be accredited.",
+    "must_include": ["506", "35", "accredited"],
+    "notes": "Grounded in 02_SEC_Regulations/sec_reg_d.md"
+  },
+  {
+    "id": "q26",
+    "question": "What is the award range under the SEC whistleblower program and the sanction threshold to qualify?",
+    "expected": "The SEC whistleblower program pays awards of 10 percent to 30 percent of monetary sanctions collected when the sanctions exceed 1,000,000 dollars, and it protects whistleblowers from retaliation.",
+    "must_include": ["10 percent", "30 percent", "1,000,000"],
+    "notes": "Grounded in 02_SEC_Regulations/sec_whistleblower.md"
+  },
+  {
+    "id": "q27",
+    "question": "In the FIX protocol, what OrdType (tag 40) values represent Market, Limit, Stop, and Stop Limit orders?",
+    "expected": "In FIX, OrdType (tag 40) uses 1 for Market, 2 for Limit, 3 for Stop, and 4 for Stop Limit; a Limit order requires Price (tag 44) and a Stop order requires StopPx (tag 99).",
+    "must_include": ["OrdType", "Market", "Limit", "Stop"],
+    "notes": "Grounded in 03_FIX_Protocol/fix_order_types.md"
+  },
+  {
+    "id": "q28",
+    "question": "How is the FIX CheckSum (tag 10) calculated?",
+    "expected": "The FIX CheckSum (tag 10) is the final field of a message, computed by summing the ASCII values of all bytes up to but not including the checksum field, taking the result modulo 256, and formatting it as a three-digit value.",
+    "must_include": ["CheckSum", "modulo 256", "three-digit"],
+    "notes": "Grounded in 03_FIX_Protocol/fix_checksum.md"
+  },
+  {
+    "id": "q29",
+    "question": "Under the AML Customer Due Diligence rule, what ownership threshold defines a beneficial owner of a legal entity customer?",
+    "expected": "Under the Customer Due Diligence rule, a beneficial owner includes each individual who owns 25 percent or more of the equity interests of a legal entity customer and a single individual with significant responsibility to control or manage the entity.",
+    "must_include": ["25 percent", "beneficial owner"],
+    "notes": "Grounded in 04_Compliance_Programs/aml_cdd_beneficial_ownership.md"
+  },
+  {
+    "id": "q30",
+    "question": "What must a broker-dealer disclose on a trade confirmation under SEC Rule 10b-10?",
+    "expected": "Under SEC Rule 10b-10 a broker-dealer must give or send a written confirmation at or before completion of a transaction disclosing terms such as the date, the security and quantity, the price, whether the firm acted as agent or principal, and the commission or mark-up where required.",
+    "must_include": ["10b-10", "confirmation", "agent or principal"],
+    "notes": "Grounded in 04_Compliance_Programs/trade_confirmations.md"
+  },
+  {
+    "id": "q31",
+    "question": "What is the National Best Bid and Offer (NBBO)?",
+    "expected": "The NBBO is the highest available bid price and the lowest available offer price for an NMS security across all exchanges and reporting market centers, disseminated through the consolidated quotation system and used for best execution and the Order Protection Rule.",
+    "must_include": ["NBBO", "highest", "lowest"],
+    "notes": "Grounded in 05_Market_Structure/nbbo.md"
+  },
+  {
+    "id": "q32",
+    "question": "What is a round lot in US equity markets, and what is an odd lot?",
+    "expected": "A round lot is traditionally 100 shares; an odd lot is a quantity smaller than a round lot, and a mixed lot is larger than a round lot but not a whole multiple of one.",
+    "must_include": ["100 shares", "odd lot"],
+    "notes": "Grounded in 05_Market_Structure/odd_lots.md"
+  },
+  {
+    "id": "q33",
+    "question": "What does the Series 24 exam qualify an individual to do?",
+    "expected": "The Series 24 (General Securities Principal) exam qualifies an individual to supervise and manage branch activities such as trading, underwriting, and the conduct of registered representatives, including approving communications and overseeing compliance.",
+    "must_include": ["Series 24", "principal", "supervise"],
+    "notes": "Grounded in 06_Registration_Licensing/series_24.md"
+  },
+  {
+    "id": "q34",
+    "question": "How much does SIPC protect per customer, and how much of that may be for cash?",
+    "expected": "SIPC protects customers of a failed broker-dealer up to 500,000 dollars per customer, of which up to 250,000 dollars may be for cash claims; it covers custody risk, not market losses.",
+    "must_include": ["SIPC", "500,000", "250,000"],
+    "notes": "Grounded in 07_Risk_And_Reporting/sipc_protection.md"
+  },
+  {
+    "id": "q35",
+    "question": "What is Continuous Net Settlement (CNS) at the NSCC?",
+    "expected": "Continuous Net Settlement (CNS) at the NSCC nets each member's obligations in a security down to a single net long or short position per settlement day, with NSCC acting as the central counterparty to reduce counterparty risk and deliveries.",
+    "must_include": ["Continuous Net Settlement", "NSCC", "central counterparty"],
+    "notes": "Grounded in 08_Clearing_Settlement/nscc_cns.md"
+  },
+  {
+    "id": "q36",
+    "question": "What is the typical order of a central counterparty default waterfall?",
+    "expected": "A CCP default waterfall typically uses the defaulting member's initial margin and default fund contribution first, then the CCP's own contribution (skin in the game), then the mutualized default fund contributions of non-defaulting members, and finally any assessment powers.",
+    "must_include": ["default waterfall", "initial margin", "skin in the game"],
+    "notes": "Grounded in 08_Clearing_Settlement/default_waterfall.md"
+  },
+  {
+    "id": "q37",
+    "question": "What are the two components of an investment adviser's fiduciary duty under the Advisers Act?",
+    "expected": "Under the Investment Advisers Act an adviser's fiduciary duty comprises a duty of care and a duty of loyalty; the duty of care requires acting in the client's best interest and seeking best execution, and the duty of loyalty requires not placing the adviser's interests ahead of the client's and disclosing material conflicts.",
+    "must_include": ["duty of care", "duty of loyalty", "fiduciary"],
+    "notes": "Grounded in 09_Ethics_Conduct/fiduciary_duty.md"
+  },
+  {
+    "id": "q38",
+    "question": "What is churning in a securities account?",
+    "expected": "Churning is excessive trading in a customer's account by a broker who controls the account, done primarily to generate commissions rather than to benefit the customer; it violates anti-fraud provisions and the quantitative suitability obligation.",
+    "must_include": ["churning", "excessive trading", "commissions"],
+    "notes": "Grounded in 09_Ethics_Conduct/churning.md"
   }
 ]

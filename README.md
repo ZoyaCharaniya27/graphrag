@@ -149,10 +149,18 @@ ollama pull mistral                       # at least one LLM (or configure an AP
 # Install optional benchmark adapters (only needed for Qdrant/Chroma)
 pip install qdrant-client chromadb
 
-# Generate the ~50-document evaluation corpus, then ingest it
-python data/generate_dataset.py                       # writes data/corpus/*.md (53 docs)
+# Generate the ~100-document evaluation corpus, then ingest it
+python data/generate_dataset.py                       # writes data/corpus/*.md (111 docs)
 python -m ingestion.ingest --documents ./data/corpus  # embed + load into the vector DB
 ```
+
+The corpus (`data/corpus/`) spans nine compliance/markets categories. Ingest it **once**
+into pgvector; the benchmark then copies those same chunks into Qdrant/ChromaDB with
+`--load-from-pg`. Run ingestion and the benchmark as a **single process** — Qdrant's
+embedded on-disk store (`./data/qdrant`) holds a one-process lock, so no API server or
+second run may touch that path at the same time. For a large graph build on a slower local
+LLM, raise the per-episode timeout with `GRAPH_EPISODE_TIMEOUT` (seconds, default 60), e.g.
+`GRAPH_EPISODE_TIMEOUT=120`.
 
 Questions live in `data/eval_questions.json`. Each has a **golden reference answer**
 (`expected`) and a `must_include` keyword list, both grounded in the generated corpus, so
