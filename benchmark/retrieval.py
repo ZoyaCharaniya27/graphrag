@@ -1,7 +1,13 @@
 """
-Retrieval benchmarking: run vector-only, graph-only, and hybrid retrieval and measure
-latency. Vector/hybrid run against a supplied vector store; graph uses the existing,
-unchanged Neo4j path.
+Retrieval benchmarking: run the retrieval modes and measure latency.
+
+Modes:
+  * vector        — dense similarity against the vector store.
+  * graph         — the unchanged Neo4j knowledge-graph path.
+  * hybrid        — FUSED: always runs BOTH vector and graph and merges them with
+                    Reciprocal Rank Fusion (the "always run both" baseline).
+  * dense_hybrid  — the vector store's native dense+keyword blend (store.hybrid_search);
+                    preserved for the vector-DB comparison. Vector-only, no graph.
 """
 
 import logging
@@ -50,13 +56,14 @@ async def run_vector(
         return RetrievalOutcome("vector", [], elapsed, str(exc))
 
 
-async def run_hybrid(
+async def run_dense_hybrid(
     store: BaseVectorStore,
     embedding: List[float],
     query_text: str,
     limit: int,
     text_weight: float,
 ) -> RetrievalOutcome:
+    """Vector store's native dense+keyword blend (no graph). Preserved for DB comparison."""
     start = time.perf_counter()
     try:
         records = await store.hybrid_search(
@@ -66,11 +73,74 @@ async def run_hybrid(
             text_weight=text_weight,
         )
         elapsed = (time.perf_counter() - start) * 1000.0
-        return RetrievalOutcome("hybrid", list(records), elapsed)
+        return RetrievalOutcome("dense_hybrid", list(records), elapsed)
     except Exception as exc:  # noqa: BLE001
         elapsed = (time.perf_counter() - start) * 1000.0
-        logger.warning("Hybrid retrieval failed: %s", exc)
-        return RetrievalOutcome("hybrid", [], elapsed, str(exc))
+        logger.warning("Dense-hybrid retrieval failed: %s", exc)
+        return RetrievalOutcome("dense_hybrid", [], elapsed, str(exc))
+
+
+def _rrf_merge(
+    vector_records: List[Dict[str, Any]],
+    graph_records: List[Dict[str, Any]],
+    limit: int,
+    k: int = 60,
+) -> List[Dict[str, Any]]:
+    """Reciprocal Rank Fusion of two ranked result lists.
+
+    RRF score for an item at 1-based rank r in a list is 1/(k + r); scores from the two
+    lists are summed. Items are de-duplicated by (chunk_id or content). Returns the top
+    ``limit`` merged records, tagging each with its fused rank.
+    """
+    scores: Dict[str, float] = {}
+    best: Dict[str, Dict[str, Any]] = {}
+
+    def key_of(rec: Dict[str, Any]) -> str:
+        return str(rec.get("chunk_id") or rec.get("id") or (rec.get("content") or "")[:120])
+
+    for lst in (vector_records, graph_records):
+        for rank, rec in enumerate(lst, start=1):
+            key = key_of(rec)
+            scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank)
+            # Keep the first-seen record for each key (prefer vector's metadata shape).
+            if key not in best:
+                best[key] = rec
+
+    ordered = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    merged: List[Dict[str, Any]] = []
+    for key, score in ordered[:limit]:
+        rec = dict(best[key])
+        rec["fused_score"] = score
+        merged.append(rec)
+    return merged
+
+
+async def run_hybrid(
+    store: BaseVectorStore,
+    embedding: List[float],
+    query_text: str,
+    limit: int,
+    text_weight: float = 0.3,
+) -> RetrievalOutcome:
+    """FUSED hybrid: always run BOTH vector and graph, merge with RRF.
+
+    This is the "always run both" baseline. Latency covers both retrievals (run
+    concurrently). If one side errors it is treated as empty and the other still
+    contributes, so hybrid degrades gracefully (e.g. to vector-only when the graph is
+    empty). text_weight is accepted for signature compatibility but unused by the fusion.
+    """
+    import asyncio
+
+    start = time.perf_counter()
+    # Candidate pools a bit larger than the final limit so fusion has material to work with.
+    pool = max(limit * 2, limit)
+    vec_task = run_vector(store, embedding, pool)
+    graph_task = run_graph(query_text, pool)
+    vec_out, graph_out = await asyncio.gather(vec_task, graph_task)
+    merged = _rrf_merge(vec_out.records, graph_out.records, limit=limit)
+    elapsed = (time.perf_counter() - start) * 1000.0
+    errs = [e for e in (vec_out.error, graph_out.error) if e]
+    return RetrievalOutcome("hybrid", merged, elapsed, "; ".join(errs))
 
 
 async def run_graph(query_text: str, limit: int) -> RetrievalOutcome:

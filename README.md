@@ -303,7 +303,34 @@ python -m benchmark --help
 #   --max-questions N       (quick run on first N questions)
 #   --judge MODEL           (also grade answers 1-5 with an LLM judge)
 #   --no-embedding-score    (skip embedding-similarity scoring)
+#   --router {none,rules,llm,oracle}   (route each question to a mode)
+#   --router-model MODEL    (LLM used by --router llm; default mistral)
 ```
+
+### Retrieval modes and the router
+
+- `vector` — dense similarity on the vector store (single-hop/factoid).
+- `graph` — Neo4j knowledge graph (multi-hop/relational).
+- `hybrid` — **fused: always runs BOTH vector and graph**, merged with RRF (the "run both" baseline).
+- `dense_hybrid` — the vector store's dense+keyword blend, no graph (kept for the vector-DB comparison).
+
+The **router** picks one mode per question instead of running all of them:
+
+```bash
+# rule-based router (offline, zero model cost)
+python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
+  --llms mistral llama3 --router rules \
+  --questions data/eval_questions_real.json --output results/routed.csv
+
+# LLM router + oracle upper bound in the report
+python -m benchmark --backends pgvector --llms mistral --router llm --router-model mistral \
+  --questions data/eval_questions_real.json --output results/routed_llm.csv
+```
+
+The report's **Router analysis** shows static baselines, the oracle upper bound, the router's
+score, its **regret** (oracle − router), and its mode-choice distribution. Routing only helps
+when query types differ by mode, so use a **populated graph** (ingest without `--fast`) and a
+**multi-hop question set** (HotpotQA).
 
 Relevant `.env` settings: `VECTOR_BACKEND`, `EMBEDDING_DIMENSION`, `QDRANT_PATH`,
 `QDRANT_IN_MEMORY`, `CHROMA_PATH`, `BENCHMARK_LLMS`, `BENCHMARK_LIMIT` (see `.env.example`).

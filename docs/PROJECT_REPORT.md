@@ -184,6 +184,41 @@ Trade-off: graph building makes one extraction LLM call per chunk, so ingesting 
 the graph on is substantially slower than the `--fast` (vector-only) path and is best run on
 the GPU (Tesla) host.
 
+### 6.2b Retrieval modes and the query router
+
+Retrieval modes (select with `--modes`, or let the router choose):
+
+| Mode | Retrieves | Notes |
+|---|---|---|
+| `vector` | dense similarity on the vector store | single-hop / factoid |
+| `graph` | Neo4j knowledge graph | multi-hop / relational |
+| `hybrid` | **fused: always runs BOTH vector and graph**, merged with Reciprocal Rank Fusion (RRF, k=60) | the "always run both" baseline; most context, highest cost |
+| `dense_hybrid` | the vector store's native dense+keyword blend (no graph) | preserved for the vector-DB comparison |
+
+**Note:** `hybrid` was redefined to mean vector+graph fusion (the design doc's `mix`). The
+previous dense+keyword blend is kept as `dense_hybrid` so the backend-level vector-DB
+comparison still runs unchanged.
+
+**Query router** (`--router`): instead of running every mode, the router picks one mode per
+question, following the design doc's levels. It routes among `vector`, `graph`, and `hybrid`.
+
+| Level | `--router` | How it decides | Cost |
+|---|---|---|---|
+| R0 static | `none` | run the `--modes` you pass (no routing) | n/a |
+| R1 rules | `rules` | keyword/pattern rules (compare/both/overall, entity count, question word) | zero |
+| R3 LLM | `llm` | one LLM call classifies the question (fact / multi-hop / comparison / global) → mode (`--router-model`, default mistral) | one short call |
+| Oracle | `oracle` | post-hoc upper bound: the best-scoring mode per question | not deployable |
+
+The report adds a **Router analysis** section: static baselines (always-vector / -graph /
+-hybrid), the **oracle** upper bound, and — when a live router ran — the router's achieved
+score, its **regret** (oracle − router, lower is better), and its mode-choice distribution.
+The CSV gains a `routed_mode` column recording the router's per-question choice.
+
+Honest scope: the router only beats a single fixed mode when query types actually differ by
+mode, which requires a **populated graph** (ingest without `--fast`) and a **mixed/multi-hop
+question set** (e.g. HotpotQA). On the single-type synthetic set the router mostly picks one
+mode and shows little benefit — this is expected and is itself a reportable finding.
+
 ### 6.3 Vector database comparison (pgvector vs Qdrant vs ChromaDB)
 
 All three backends store the identical 384-dim embeddings and are queried through the same

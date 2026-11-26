@@ -41,8 +41,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--modes",
         nargs="+",
-        choices=["vector", "graph", "hybrid"],
-        help="Retrieval modes to run (default: vector graph hybrid).",
+        choices=["vector", "graph", "hybrid", "dense_hybrid"],
+        help="Retrieval modes to run when --router is 'none' (default: vector graph hybrid). "
+        "hybrid = fused vector+graph (always both); dense_hybrid = vector-store dense+keyword "
+        "blend (no graph). Ignored when a router is active.",
     )
     p.add_argument(
         "--questions",
@@ -86,6 +88,20 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="MODEL",
         help="Optional LLM model name to grade each answer 1-5 against the golden "
         "reference (adds a score_llm_judge column). Off by default.",
+    )
+    p.add_argument(
+        "--router",
+        default="none",
+        choices=["none", "rules", "llm", "oracle"],
+        help="Query router: none (run --modes); rules (keyword rules pick a mode per "
+        "question); llm (one LLM call classifies and picks a mode); oracle (post-hoc "
+        "upper bound reported from per-mode scores). Default: none.",
+    )
+    p.add_argument(
+        "--router-model",
+        default=None,
+        metavar="MODEL",
+        help="LLM model for --router llm (default: mistral).",
     )
     p.add_argument(
         "--log-level",

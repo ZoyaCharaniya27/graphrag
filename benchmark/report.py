@@ -255,7 +255,90 @@ def write_golden_report(rows: List[Dict[str, Any]], config) -> str:
         for qid, vals in worst:
             lines.append(f"- `{qid}` ({_fmt(_avg(vals))}): {q_text.get(qid, '')[:100]}\n")
 
+    # --- Router analysis: oracle upper bound, and (if a live router ran) its regret. ---
+    lines.append(_router_section(rows, config))
+
     content = "".join(lines)
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(content)
     return report_path
+
+
+# Routable modes the oracle picks among (mirrors config.ROUTABLE_MODES).
+_ROUTABLE = ("vector", "graph", "hybrid")
+
+
+def _router_section(rows: List[Dict[str, Any]], config) -> str:
+    """Oracle upper bound + live-router accuracy/regret.
+
+    Oracle: for each (backend, llm, question), the best score_overall achievable across the
+    routable modes present in the data. Static baselines: always-vector / always-graph /
+    always-hybrid. If the run used a live router (rules/llm), also report the router's
+    achieved score and its regret against the oracle.
+    """
+    router = getattr(config, "router", "none")
+
+    # Index scores by (backend, llm, question, mode).
+    by_key: Dict[tuple, float] = {}
+    questions = set()
+    routed_choice: Dict[tuple, str] = {}
+    for r in rows:
+        s = _f(r.get("score_overall"))
+        if s != s:
+            continue
+        b, l, q, m = (
+            r.get("backend"), r.get("llm_model"), r.get("question_id"), r.get("mode")
+        )
+        by_key[(b, l, q, m)] = s
+        questions.add((b, l, q))
+        if r.get("routed_mode"):
+            routed_choice[(b, l, q)] = r.get("routed_mode")
+
+    if not questions:
+        return ""
+
+    present_modes = [m for m in _ROUTABLE if any(k[3] == m for k in by_key)]
+
+    def avg_for_mode(mode):
+        vals = [by_key[(b, l, q, mode)] for (b, l, q) in questions
+                if (b, l, q, mode) in by_key]
+        return _avg(vals) if vals else float("nan")
+
+    # Oracle = best achievable per question across present routable modes.
+    oracle_vals = []
+    for (b, l, q) in questions:
+        cand = [by_key[(b, l, q, m)] for m in present_modes if (b, l, q, m) in by_key]
+        if cand:
+            oracle_vals.append(max(cand))
+    oracle = _avg(oracle_vals) if oracle_vals else float("nan")
+
+    out = ["\n## Router analysis\n"]
+    out.append(f"- Router: **{router}**\n")
+    out.append("\n### Static baselines vs oracle (avg overall score)\n")
+    out.append("| strategy | avg overall score |\n|---|---|\n")
+    for m in present_modes:
+        out.append(f"| always-{m} | {_fmt(avg_for_mode(m))} |\n")
+    out.append(f"| **oracle (best per question)** | **{_fmt(oracle)}** |\n")
+
+    # If a live router ran, its rows carry routed_mode == mode; score them and show regret.
+    if router in ("rules", "llm") and routed_choice:
+        router_vals = []
+        for (b, l, q), chosen in routed_choice.items():
+            if (b, l, q, chosen) in by_key:
+                router_vals.append(by_key[(b, l, q, chosen)])
+        router_score = _avg(router_vals) if router_vals else float("nan")
+        regret = (oracle - router_score) if (oracle == oracle and router_score == router_score) else float("nan")
+        out.append(f"\n### Router ({router}) performance\n")
+        out.append(f"- Router avg overall score: **{_fmt(router_score)}**\n")
+        out.append(f"- Oracle avg overall score: {_fmt(oracle)}\n")
+        out.append(f"- **Regret (oracle - router): {_fmt(regret)}** (lower is better)\n")
+        # Choice distribution.
+        from collections import Counter
+        dist = Counter(routed_choice.values())
+        total_choices = sum(dist.values())
+        out.append("\n### Router mode choices\n")
+        out.append("| mode | times chosen | share |\n|---|---|---|\n")
+        for m, c in dist.most_common():
+            out.append(f"| {m} | {c} | {_fmt(c / total_choices)} |\n")
+
+    return "".join(out)

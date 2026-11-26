@@ -8,7 +8,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ALL_MODES = ("vector", "graph", "hybrid")
+ALL_MODES = ("vector", "graph", "hybrid", "dense_hybrid")
+ROUTER_LEVELS = ("none", "rules", "llm", "oracle")
+# Modes the router is allowed to choose among (one per question).
+ROUTABLE_MODES = ("vector", "graph", "hybrid")
 
 
 @dataclass
@@ -25,6 +28,8 @@ class BenchmarkConfig:
     dimension: int = field(default=384)
     use_embedding_score: bool = True
     judge_model: Optional[str] = None
+    router: str = "none"
+    router_model: Optional[str] = None
 
 
 def _split_csv(value: Optional[str]) -> List[str]:
@@ -39,7 +44,16 @@ def resolve_config(args) -> BenchmarkConfig:
     llms = args.llms or _split_csv(os.getenv("BENCHMARK_LLMS")) or _split_csv(
         os.getenv("LLM_CHOICE")
     ) or ["mistral"]
-    modes = args.modes or list(ALL_MODES)
+    router = getattr(args, "router", None) or "none"
+    if router not in ROUTER_LEVELS:
+        raise ValueError(f"Unknown router '{router}'. Valid: {', '.join(ROUTER_LEVELS)}")
+
+    # When a router is active it chooses the mode per question, so the explicit --modes
+    # list is the routable set; otherwise default to the three main modes.
+    if router != "none":
+        modes = list(ROUTABLE_MODES)
+    else:
+        modes = args.modes or ["vector", "graph", "hybrid"]
 
     for m in modes:
         if m not in ALL_MODES:
@@ -61,4 +75,6 @@ def resolve_config(args) -> BenchmarkConfig:
         dimension=dimension,
         use_embedding_score=not args.no_embedding_score,
         judge_model=args.judge,
+        router=router,
+        router_model=getattr(args, "router_model", None),
     )

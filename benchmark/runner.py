@@ -16,7 +16,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from agent.vector_store import create_vector_store
-from benchmark import llm_runner, retrieval, scoring
+from benchmark import llm_runner, retrieval, router, scoring
 from benchmark.config import BenchmarkConfig
 from benchmark.questions import EvalQuestion, load_questions
 from benchmark.report import write_golden_report
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 CSV_FIELDS = [
     "backend",
     "mode",
+    "routed_mode",
     "question_id",
     "question",
     "llm_model",
@@ -114,7 +115,18 @@ async def _run_backend(
                 logger.error("Embedding failed for %s: %s", q.id, exc)
                 embedding = None
 
-            for mode in config.modes:
+            # With a live router (rules/llm) the router picks ONE mode for this question;
+            # otherwise run every configured mode (and oracle is computed later in report).
+            routed_mode = ""
+            if config.router in ("rules", "llm"):
+                routed_mode = await router.choose_mode(
+                    config.router, q.question, config.router_model
+                )
+                modes_to_run = [routed_mode]
+            else:
+                modes_to_run = config.modes
+
+            for mode in modes_to_run:
                 outcome = await _retrieve(mode, store, embedding, q.question, config)
                 context = retrieval.build_context(outcome)
                 # recall@k is a property of the retrieval (same for every LLM on this cell)
@@ -127,7 +139,7 @@ async def _run_backend(
                     rows.append(
                         _build_row(
                             backend, mode, q, model_name, outcome, gen, context,
-                            score, recall_hit, recall_rank,
+                            score, recall_hit, recall_rank, routed_mode,
                         )
                     )
     finally:
@@ -135,14 +147,21 @@ async def _run_backend(
 
 
 async def _retrieve(mode, store, embedding, question, config):
-    if embedding is None and mode in ("vector", "hybrid"):
+    # vector, hybrid (fused), and dense_hybrid all need the query embedding.
+    if embedding is None and mode in ("vector", "hybrid", "dense_hybrid"):
         out = retrieval.RetrievalOutcome(mode=mode)
         out.error = "embedding_unavailable"
         return out
     if mode == "vector":
         return await retrieval.run_vector(store, embedding, config.limit)
     if mode == "hybrid":
+        # FUSED: always runs both vector and graph, merged with RRF.
         return await retrieval.run_hybrid(
+            store, embedding, question, config.limit, config.text_weight
+        )
+    if mode == "dense_hybrid":
+        # Vector store's native dense+keyword blend (no graph).
+        return await retrieval.run_dense_hybrid(
             store, embedding, question, config.limit, config.text_weight
         )
     if mode == "graph":
@@ -175,12 +194,13 @@ async def _score(q: EvalQuestion, gen, config: BenchmarkConfig):
 
 def _build_row(
     backend, mode, q, model_name, outcome, gen, context, score,
-    recall_hit=None, recall_rank=None,
+    recall_hit=None, recall_rank=None, routed_mode="",
 ) -> Dict[str, Any]:
     errors = [e for e in (outcome.error, gen.error) if e]
     row = {
         "backend": backend,
         "mode": mode,
+        "routed_mode": routed_mode,
         "question_id": q.id,
         "question": q.question,
         "llm_model": model_name,
