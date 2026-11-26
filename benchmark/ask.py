@@ -265,6 +265,24 @@ def main(argv=None) -> int:
     ap.add_argument(
         "--no-sources", action="store_true", help="Do not print retrieved sources."
     )
+    ap.add_argument(
+        "--auto-best",
+        action="store_true",
+        help="Read a benchmark results CSV and use the winning backend + LLM as defaults "
+        "(the router still picks the mode per question). See --results.",
+    )
+    ap.add_argument(
+        "--results",
+        default="results/comparison_summary.csv",
+        help="Results CSV for --auto-best (default: results/comparison_summary.csv).",
+    )
+    ap.add_argument(
+        "--backend-criterion",
+        default="latency",
+        choices=["latency", "accuracy"],
+        help="How --auto-best picks the backend (default: latency; backends tend to tie on "
+        "accuracy at this scale).",
+    )
     ap.add_argument("--log-level", default="WARNING", help="Logging level (default WARNING).")
     args = ap.parse_args(argv)
 
@@ -273,11 +291,31 @@ def main(argv=None) -> int:
         format="%(levelname)s %(name)s: %(message)s",
     )
 
+    backend = args.backend
+    llm = args.llm
+    if args.auto_best:
+        from benchmark import results_reader
+
+        try:
+            best = results_reader.pick_best(
+                args.results, backend_criterion=args.backend_criterion
+            )
+            backend = best.backend
+            llm = best.llm
+            print(results_reader.format_summary(best))
+            print()
+        except Exception as exc:  # noqa: BLE001
+            print(
+                f"[--auto-best could not read {args.results}: {exc}]\n"
+                f"Falling back to --backend {backend} / --llm {llm}. "
+                f"Run the benchmark first to produce the results CSV.\n"
+            )
+
     sess = Session(
-        backend=args.backend,
+        backend=backend,
         router_level=args.router,
         mode=args.mode,
-        llm=args.llm,
+        llm=llm,
         router_model=args.router_model,
         limit=args.limit,
         show_sources=not args.no_sources,

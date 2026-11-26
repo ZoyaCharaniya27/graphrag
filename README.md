@@ -317,6 +317,28 @@ python -m benchmark.ask --backend qdrant --router llm    # LLM router on qdrant
 python -m benchmark.ask --mode vector --router none      # fixed mode, no routing
 ```
 
+**Two-phase "run everything, chat with the best"**: first the benchmark compares all
+DBs × modes × LLMs into a CSV; then the chat uses the winning DB + LLM (the router still
+picks the mode per question):
+
+```bash
+# Phase 1 — benchmark everything -> results/comparison_summary.csv
+python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
+  --llms mistral llama3 --modes vector graph hybrid \
+  --questions data/eval_questions_real.json --output results/comparison_summary.csv
+
+# Phase 2 — chat configured with the winners from that CSV
+python -m benchmark.ask --auto-best --results results/comparison_summary.csv --router rules
+```
+
+`--auto-best` reads the CSV and selects the winning **LLM** (highest avg score) and
+**backend** (by default the fastest among backends within a small accuracy tolerance, since
+backends tend to tie on accuracy at this scale — use `--backend-criterion accuracy` to rank
+purely by score). It prints the chosen config and the per-DB / per-LLM averages, then the
+router picks the retrieval **mode** per question. Note: the live chat picks the router's
+*predicted*-best mode from the question text (there is no gold answer for a live question);
+the benchmark's regret-vs-oracle number is the evidence that this prediction is reliable.
+
 Per question it prints the route taken (or fixed mode), the backend used, retrieval and
 generation latency, the retrieved sources, and the answer. Change settings mid-session with
 `/backend`, `/router`, `/mode`, `/llm`, `/limit`, `/sources`; `/help` lists all commands,
