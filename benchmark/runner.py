@@ -122,6 +122,9 @@ async def _run_backend(
                 routed_mode = await router.choose_mode(
                     config.router, q.question, config.router_model
                 )
+                logger.info(
+                    "   router[%s] %s -> mode=%s", config.router, q.id, routed_mode
+                )
                 modes_to_run = [routed_mode]
             else:
                 modes_to_run = config.modes
