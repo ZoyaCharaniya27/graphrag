@@ -105,6 +105,21 @@ CLI flags: `--backends`, `--llms`, `--modes`, `--questions`, `--output`, `--limi
 **Evaluation set:** 38 questions, each with a golden reference answer and required-keyword
 list, every keyword verified present in the corpus.
 
+### 4a. Real public dataset (HotpotQA)
+
+To move beyond the synthetic corpus, `data/load_real_dataset.py` loads a configurable slice of
+**HotpotQA** (via the `datasets` library; a one-time download, no paid API key). HotpotQA was
+chosen because each question ships with its **gold supporting paragraphs**, which map directly
+onto this project's `relevant_source` → recall@k machinery: the loader writes each question's
+gold passage into the corpus and records it as that question's `relevant_source`, so recall@k
+measures whether a backend retrieved the *truly* relevant document rather than a synthetic
+stand-in. Passages are written to `data/corpus_real/` and the golden set to
+`data/eval_questions_real.json` (same schema the benchmark already parses); the synthetic corpus
+and q1–q38 are untouched, and both real artifacts are gitignored (regenerable). This is the
+integration that makes the vector-DB comparison genuinely differentiating, since the text is
+diverse real-world prose and relevance is labelled. (Scale is still bounded by how large a slice
+is downloaded; tens of thousands of chunks is where ANN backends separate most clearly.)
+
 ## 5. Metrics
 
 - **Retrieval quality:** `recall@k` (was the known relevant document retrieved in the top-k)
@@ -295,8 +310,11 @@ python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
 
 ## 10. Future work (highest value first)
 
-1. **Scale to 10k+ chunks from a real public QA dataset** (e.g. HotpotQA / MS MARCO passages)
-   so recall@k can actually distinguish the vector backends. Single biggest upgrade.
+1. **Real public dataset — implemented (HotpotQA), now scale it up.** `data/load_real_dataset.py`
+   loads HotpotQA with labelled gold passages for recall@k (see §4a). The remaining step is to
+   run it at larger `--num-questions` / `--max-docs` (toward 10k+ chunks), where ANN backends
+   separate most clearly, and record the results. This is the single biggest upgrade in
+   credibility for the vector-DB comparison.
 2. **Populate the knowledge graph** with an LLM-based entity/relation extractor so graph and
    hybrid modes are meaningful for this domain.
 3. **Use a larger judge model** (e.g. a 32B/70B local model) if GPU allows, or drop the judge

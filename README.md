@@ -163,6 +163,28 @@ for quick runs. (With a small corpus the three vector backends return near-ident
 the larger corpus and the recall@k / latency-percentile metrics below make the comparison
 more meaningful, though truly separating ANN backends needs tens of thousands of chunks.)
 
+#### Real public dataset (HotpotQA) — for a credible retrieval comparison
+
+The synthetic corpus is reproducible and offline, but its documents are templated. To compare
+the vector backends on **real, diverse text with labelled relevant passages** (so recall@k is
+evidence-based), use the real-dataset loader. It requires a one-time download via the
+`datasets` library (no paid API key):
+
+```bash
+pip install datasets
+python data/load_real_dataset.py --num-questions 100 --max-docs 5000
+python -m ingestion.ingest --documents ./data/corpus_real --clean --fast
+python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
+  --llms mistral llama3 --modes vector hybrid \
+  --questions data/eval_questions_real.json --output results/real.csv
+```
+
+This writes passages to `data/corpus_real/` and a golden set to `data/eval_questions_real.json`
+where each question's `relevant_source` is its HotpotQA gold supporting paragraph — so recall@k
+measures whether each backend retrieved the truly relevant document. The synthetic corpus and
+`q1-q38` are left untouched. Both `data/corpus_real/` and the real question file are gitignored
+(regenerable from the loader).
+
 The corpus (`data/corpus/`) spans nine compliance/markets categories. Ingest it **once**
 into pgvector; the benchmark then copies those same chunks into Qdrant/ChromaDB with
 `--load-from-pg`. Run ingestion and the benchmark as a **single process** — Qdrant's
