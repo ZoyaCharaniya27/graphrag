@@ -279,34 +279,72 @@ does not emphasize), but it will no longer be empty.
 
 ## 9. How to reproduce
 
+Common setup (both corpora):
+
 ```bash
-# 1. services + models (pull the graph extraction model too)
 docker compose up -d
-ollama pull mistral && ollama pull llama3 && ollama pull qwen3:0.6b
+ollama pull mistral && ollama pull llama3 && ollama pull qwen3:0.6b   # last = graph extractor
 pip install -r requirements.txt && pip install qdrant-client chromadb
+# keep the small extractor warm to avoid cold-start retries during graph ingest:
+#   set OLLAMA_KEEP_ALIVE=30m in the Ollama server environment
+```
 
-# 2. build the 1000-doc corpus
+### 9.1 Synthetic corpus run
+
+```bash
+# build the ~1000-doc synthetic corpus
 python data/generate_dataset.py
-python data/generate_large_corpus.py          # -> ~1000 docs
+python data/generate_large_corpus.py                       # -> data/corpus/ (~1000 docs)
 
-# 3a. OPTION A — vector-only (fast, skips the graph): seconds to minutes
-python -m ingestion.ingest --documents ./data/corpus --clean --fast
-
-# 3b. OPTION B — WITH the knowledge graph (slower: one LLM call per chunk; use the GPU host)
-export GRAPH_EPISODE_TIMEOUT=120               # give the small extractor headroom
+# ingest (drop --fast to build the knowledge graph; add it to skip the graph and go fast)
+export GRAPH_EPISODE_TIMEOUT=120
 python -m ingestion.ingest --documents ./data/corpus --clean
 
-# 4. sanity benchmark, then full run
-#    (include 'graph' in --modes only if you ingested with OPTION B)
-python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
-  --llms mistral llama3 --modes vector graph hybrid --max-questions 5 \
-  --output results/sanity.csv
+# benchmark (defaults to data/eval_questions.json = q1-q38)
 python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
   --llms mistral llama3 --modes vector graph hybrid \
-  --output results/comparison_summary.csv
-
-# outputs: results/comparison_summary.csv and results/golden_report.md
+  --output results/synthetic.csv
+# -> results/synthetic.csv + results/golden_report.md
 ```
+
+### 9.2 Real dataset run (HotpotQA)
+
+```bash
+pip install datasets                                        # one-time download, no paid key
+
+# build the real corpus + golden questions with labelled gold passages
+python data/load_real_dataset.py --num-questions 100 --max-docs 2000
+#   -> data/corpus_real/  and  data/eval_questions_real.json
+
+# ingest the REAL corpus folder
+export GRAPH_EPISODE_TIMEOUT=120
+python -m ingestion.ingest --documents ./data/corpus_real --clean
+
+# benchmark the REAL question set (note --questions and a distinct --output)
+python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
+  --llms mistral llama3 --modes vector graph hybrid \
+  --questions data/eval_questions_real.json \
+  --output results/real.csv
+# -> results/real.csv + results/golden_report.md
+```
+
+### 9.3 What differs between the two runs
+
+Only the corpus build, the ingest `--documents` path, and the benchmark `--questions`
+/ `--output` differ; all other flags behave identically.
+
+| Step | Synthetic | Real (HotpotQA) |
+|---|---|---|
+| Build corpus | `generate_dataset.py` + `generate_large_corpus.py` | `load_real_dataset.py` (needs `datasets`) |
+| Ingest `--documents` | `./data/corpus` | `./data/corpus_real` |
+| Benchmark `--questions` | *(omit → defaults to `data/eval_questions.json`, q1–q38)* | `--questions data/eval_questions_real.json` (r1, r2, …) |
+| Questions / answers | hand-authored compliance Q&A | real HotpotQA questions + gold answers |
+| `relevant_source` for recall@k | the synthetic `.md` that grounds the answer | the HotpotQA gold supporting passage |
+| `--output` | `results/synthetic.csv` | `results/real.csv` |
+
+Notes: use a distinct `--output` per run so one run's CSV/`golden_report.md` does not overwrite
+the other; add `--fast` to either ingest to skip the graph (faster, graph mode returns empty);
+add `--judge <model>` to either benchmark to enable LLM-judge scoring.
 
 ## 10. Future work (highest value first)
 
