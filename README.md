@@ -16,6 +16,8 @@ A completely **free and open source** Retrieval-Augmented Generation (RAG) syste
 ## 📚 Documentation
 
 - **[INSTALLATION.md](INSTALLATION.md)** - Setup and installation guide
+- **[docs/BENCHMARK_GUIDE.md](docs/BENCHMARK_GUIDE.md)** - How the vector-DB adapters and the
+  multi-LLM benchmark work, end to end
 
 ## 🚀 Quick Start (5 minutes)
 
@@ -88,9 +90,12 @@ python -m agent.api
 ```
 Graph_Rag/
 ├── agent/              # Core RAG agent and API
+│   └── vector_store/   # Swappable vector DB adapters (pgvector/qdrant/chroma)
+├── benchmark/          # Vector DB + multi-LLM comparison runner
 ├── ingestion/          # Document processing pipeline
 ├── frontend/           # Web interface
-├── data/               # Your documents go here
+├── data/               # Your documents + data/eval_questions.json
+├── results/            # Benchmark output (comparison_summary.csv)
 ├── sql/                # Database schemas
 ├── docker-compose.yml  # Service configuration
 ├── cli.py              # Interactive CLI
@@ -112,12 +117,285 @@ python -m agent.api
 # Start CLI
 python cli.py
 
+# Run the benchmark (vector DB + LLM comparison -> results/comparison_summary.csv)
+python -m benchmark --backends pgvector qdrant chroma --load-from-pg --llms mistral llama3
+
 # View logs
 docker compose logs -f
 
 # Stop services
 docker compose down
 ```
+
+## 📊 Benchmarking: Vector DB & Multi-LLM Comparison
+
+The `benchmark/` suite compares vector-DB backends and LLMs over a fixed set of evaluation
+questions. It runs **vector-only**, **graph-only**, and **hybrid** retrieval, records
+retrieval latency (ms) per vector DB, then passes the **same retrieved context** to each
+configured LLM and logs generation latency (ms), token usage, and the answer into
+`results/comparison_summary.csv`.
+
+Supported vector backends (swappable via a `BaseVectorStore` interface, pgvector is the
+default): **pgvector** (PostgreSQL), **Qdrant** (local path or in-memory), **ChromaDB**
+(persistent local directory). Neo4j knowledge-graph retrieval is unchanged.
+
+### Prerequisites
+
+```bash
+# Core services + an LLM must be reachable (same as normal usage)
+docker compose up -d                      # PostgreSQL (pgvector) + Neo4j
+ollama pull mistral                       # at least one LLM (or configure an API in .env)
+
+# Install optional benchmark adapters (only needed for Qdrant/Chroma)
+pip install qdrant-client chromadb
+
+# Generate the evaluation corpus, then ingest it
+python data/generate_dataset.py                       # authored docs (111) that ground q1-q38
+python data/generate_large_corpus.py                  # scale to ~1000 docs (offline, no API key)
+python -m ingestion.ingest --documents ./data/corpus  # embed + load into the vector DB
+```
+
+`data/generate_large_corpus.py` adds ~900 distinct reference documents under
+`data/corpus/10_Scaled_Reference/` so the comparison runs on a realistic volume. It leaves
+the 111 authored docs untouched (so q1-q38 stay grounded) and takes `--target N` to change
+the total. At 1000 docs expect a longer ingest and a longer benchmark; use `--max-questions`
+for quick runs. (With a small corpus the three vector backends return near-identical results;
+the larger corpus and the recall@k / latency-percentile metrics below make the comparison
+more meaningful, though truly separating ANN backends needs tens of thousands of chunks.)
+
+#### Real public dataset (HotpotQA) — for a credible retrieval comparison
+
+The synthetic corpus is reproducible and offline, but its documents are templated. To compare
+the vector backends on **real, diverse text with labelled relevant passages** (so recall@k is
+evidence-based), use the real-dataset loader. It requires a one-time download via the
+`datasets` library (no paid API key):
+
+```bash
+pip install datasets
+python data/load_real_dataset.py --num-questions 100 --max-docs 5000
+python -m ingestion.ingest --documents ./data/corpus_real --clean --fast
+python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
+  --llms mistral llama3 --modes vector hybrid \
+  --questions data/eval_questions_real.json --output results/real.csv
+```
+
+This writes passages to `data/corpus_real/` and a golden set to `data/eval_questions_real.json`
+where each question's `relevant_source` is its HotpotQA gold supporting paragraph — so recall@k
+measures whether each backend retrieved the truly relevant document. The synthetic corpus and
+`q1-q38` are left untouched. Both `data/corpus_real/` and the real question file are gitignored
+(regenerable from the loader).
+
+The corpus (`data/corpus/`) spans nine compliance/markets categories. Ingest it **once**
+into pgvector; the benchmark then copies those same chunks into Qdrant/ChromaDB with
+`--load-from-pg`. Run ingestion and the benchmark as a **single process** — Qdrant's
+embedded on-disk store (`./data/qdrant`) holds a one-process lock, so no API server or
+second run may touch that path at the same time. For a large graph build on a slower local
+LLM, raise the per-episode timeout with `GRAPH_EPISODE_TIMEOUT` (seconds, default 60), e.g.
+`GRAPH_EPISODE_TIMEOUT=120`.
+
+Questions live in `data/eval_questions.json`. Each has a **golden reference answer**
+(`expected`) and a `must_include` keyword list, both grounded in the generated corpus, so
+answers can be scored for accuracy — not just latency. Edit or replace with your own.
+
+### 1. Vector DB comparison
+
+Run the **same embedded chunks** against each vector DB, one at a time. `--load-from-pg`
+copies the chunks already stored in pgvector into Qdrant and ChromaDB so the comparison is
+fair (it is a no-op for pgvector):
+
+```bash
+python -m benchmark \
+  --backends pgvector qdrant chroma \
+  --load-from-pg \
+  --llms mistral \
+  --output results/comparison_summary.csv
+```
+
+Each backend contributes rows for every question × mode (`vector`, `graph`, `hybrid`) with
+its `retrieval_latency_ms`.
+
+### 2. Multi-LLM comparison
+
+Compare several LLMs on identical retrieved context (local Ollama models and/or
+OpenAI-compatible APIs configured in `.env`):
+
+```bash
+python -m benchmark \
+  --backends pgvector \
+  --llms mistral llama3 \
+  --output results/comparison_summary.csv
+```
+
+### 3. Combined comparison (all backends × all LLMs)
+
+```bash
+python -m benchmark \
+  --backends pgvector qdrant chroma --load-from-pg \
+  --llms mistral llama3 \
+  --modes vector graph hybrid \
+  --output results/comparison_summary.csv
+```
+
+### Output
+
+`results/comparison_summary.csv` columns:
+
+| Column | Meaning |
+|--------|---------|
+| `backend` | Vector DB used (pgvector / qdrant / chroma) |
+| `mode` | Retrieval mode (vector / graph / hybrid) |
+| `question_id`, `question` | The evaluation question |
+| `llm_model` | LLM that generated the answer |
+| `retrieval_latency_ms` | Retrieval time for that backend+mode |
+| `generation_latency_ms` | LLM generation time |
+| `prompt_tokens`, `completion_tokens`, `total_tokens` | Token usage (blank if unreported) |
+| `num_context_chunks` | Chunks included in the shared context |
+| `relevant_source` | Known relevant document for the question (for recall@k) |
+| `recall_at_k` | 1 if the relevant document was retrieved in the top-k, else 0 (blank if unlabelled) |
+| `relevant_rank` | 1-based rank of the relevant document when retrieved |
+| `score_f1` | Token-overlap F1 of the answer vs the golden reference |
+| `score_keyword_coverage` | Fraction of `must_include` keywords present in the answer |
+| `score_embedding_similarity` | Cosine similarity of answer vs golden reference embeddings |
+| `score_overall` | Composite accuracy (weighted blend of the three signals above) |
+| `score_llm_judge` | Optional LLM grade 0-1 (only with `--judge`) |
+| `missing_keywords` | Required keywords the answer omitted |
+| `answer` | Generated answer |
+| `expected` | Golden reference answer |
+| `error` | Any per-cell error (run continues on failure) |
+
+A **golden-standard summary** is also written to `results/golden_report.md`: average accuracy
+and latency broken down by LLM, by vector backend, and by retrieval mode; **recall@k** and
+mean rank per backend and per mode; **retrieval latency percentiles** (p50/p95/p99/max) per
+backend and **generation latency percentiles** per LLM; plus the best-scoring configuration
+and the lowest-scoring questions.
+
+**recall@k** measures retrieval quality directly: for each question the relevant source
+document is known (from its `relevant_source`, or parsed from the `Grounded in ...` note), and
+recall@k is the fraction of questions whose relevant document appears in the top-k retrieved
+results. This is the metric that actually distinguishes vector backends, independent of the
+LLM. The CSV adds `relevant_source`, `recall_at_k`, and `relevant_rank` columns.
+
+### Golden-standard accuracy scoring
+
+Every generated answer is scored against the question's golden reference using three
+complementary signals, combined into `score_overall`:
+
+- **Token-F1** — word-level overlap with the reference (right content, no padding).
+- **Keyword coverage** — did the answer include the required facts (`must_include`)?
+- **Embedding similarity** — semantic closeness to the reference (handles paraphrasing).
+
+Optional, slower, more realistic: add `--judge mistral` (or any model) to also have an LLM
+grade each answer 1-5 against the reference (`score_llm_judge`). Use `--no-embedding-score`
+to skip the embedding signal for faster, fully offline scoring.
+
+### Useful flags
+
+```bash
+python -m benchmark --help
+#   --backends {pgvector,qdrant,chroma} ...
+#   --llms MODEL [MODEL ...]
+#   --modes {vector,graph,hybrid} ...
+#   --questions PATH        (default: data/eval_questions.json)
+#   --output PATH           (default: results/comparison_summary.csv)
+#   --limit N               (max results per retrieval, default 5)
+#   --text-weight FLOAT     (hybrid text weight 0-1, default 0.3)
+#   --load-from-pg          (copy pgvector chunks into the selected backend)
+#   --max-questions N       (quick run on first N questions)
+#   --judge MODEL           (also grade answers 1-5 with an LLM judge)
+#   --no-embedding-score    (skip embedding-similarity scoring)
+#   --router {none,rules,llm,oracle}   (route each question to a mode)
+#   --router-model MODEL    (LLM used by --router llm; default mistral)
+```
+
+### Interactive Q&A (terminal)
+
+Ask questions interactively and watch the router/modes/backends work live:
+
+```bash
+python -m benchmark.ask                                  # pgvector, router=rules, mistral
+python -m benchmark.ask --backend qdrant --router llm    # LLM router on qdrant
+python -m benchmark.ask --mode vector --router none      # fixed mode, no routing
+```
+
+**Two-phase "run everything, chat with the best"**: first the benchmark compares all
+DBs × modes × LLMs into a CSV; then the chat uses the winning DB + LLM (the router still
+picks the mode per question):
+
+```bash
+# Phase 1 — benchmark everything -> results/comparison_summary.csv
+python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
+  --llms mistral llama3 --modes vector graph hybrid \
+  --questions data/eval_questions_real.json --output results/comparison_summary.csv
+
+# Phase 2 — chat configured with the winners from that CSV
+python -m benchmark.ask --auto-best --results results/comparison_summary.csv --router rules
+```
+
+`--auto-best` reads the CSV and selects the winning **LLM** (highest avg score) and
+**backend** (by default the fastest among backends within a small accuracy tolerance, since
+backends tend to tie on accuracy at this scale — use `--backend-criterion accuracy` to rank
+purely by score). It prints the chosen config and the per-DB / per-LLM averages, then the
+router picks the retrieval **mode** per question. Note: the live chat picks the router's
+*predicted*-best mode from the question text (there is no gold answer for a live question);
+the benchmark's regret-vs-oracle number is the evidence that this prediction is reliable.
+
+Per question it prints the route taken (or fixed mode), the backend used, retrieval and
+generation latency, the retrieved sources, and the answer. Change settings mid-session with
+`/backend`, `/router`, `/mode`, `/llm`, `/limit`, `/sources`; `/help` lists all commands,
+`/quit` exits. Needs the same services as the benchmark (Postgres, Ollama, and Neo4j for
+graph/hybrid). It reuses the exact benchmark components, so its behavior matches
+`python -m benchmark`.
+
+### Retrieval modes and the router
+
+- `vector` — dense similarity on the vector store (single-hop/factoid).
+- `graph` — Neo4j knowledge graph (multi-hop/relational).
+- `hybrid` — **fused: always runs BOTH vector and graph**, merged with RRF (the "run both" baseline).
+- `dense_hybrid` — the vector store's dense+keyword blend, no graph (kept for the vector-DB comparison).
+
+The **router** picks one mode per question instead of running all of them:
+
+```bash
+# rule-based router (offline, zero model cost)
+python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
+  --llms mistral llama3 --router rules \
+  --questions data/eval_questions_real.json --output results/routed.csv
+
+# LLM router + oracle upper bound in the report
+python -m benchmark --backends pgvector --llms mistral --router llm --router-model mistral \
+  --questions data/eval_questions_real.json --output results/routed_llm.csv
+```
+
+The report's **Router analysis** shows static baselines, the oracle upper bound, the router's
+score, its **regret** (oracle − router), and its mode-choice distribution. Routing only helps
+when query types differ by mode, so use a **populated graph** (ingest without `--fast`) and a
+**multi-hop question set** (HotpotQA).
+
+Relevant `.env` settings: `VECTOR_BACKEND`, `EMBEDDING_DIMENSION`, `QDRANT_PATH`,
+`QDRANT_IN_MEMORY`, `CHROMA_PATH`, `BENCHMARK_LLMS`, `BENCHMARK_LIMIT` (see `.env.example`).
+
+### Troubleshooting
+
+**`hybrid_search` error: "Returned type real does not match expected type double
+precision in column 6"** — the original `hybrid_search` SQL function returned `real` from
+`ts_rank_cd` while declaring `double precision`. This is fixed in `sql/schema.sql`. Apply it
+to an existing database with either:
+
+```bash
+python init_database.py
+# or just the targeted migration:
+psql "$DATABASE_URL" -f sql/migrations/001_fix_hybrid_search_float_type.sql
+```
+
+**Graph mode returns 0 results / Neo4j warns `label Episode does not exist`** — the
+knowledge graph has not been populated yet. Graph retrieval reads `Episode` nodes created
+during ingestion. Run ingestion with graph building enabled (the default) so episodes exist:
+
+```bash
+python -m ingestion.ingest --documents ./data
+```
+
+An empty graph is not an error; the benchmark records 0 graph results and continues.
 
 ## 🤖 Using Free Local Models (Ollama)
 

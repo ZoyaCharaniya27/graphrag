@@ -375,7 +375,7 @@ class Neo4jGraphClient:
                     limit=limit
                 )
                 
-                return [dict(record) for record in results]
+                return [dict(record) async for record in results]
             
         except Exception as e:
             logger.error(f"Graph search failed: {e}")
@@ -413,7 +413,7 @@ class Neo4jGraphClient:
                     depth=depth
                 )
                 
-                related_entities = [dict(record) for record in results]
+                related_entities = [dict(record) async for record in results]
                 
                 return {
                     "central_entity": entity_name,
@@ -460,7 +460,7 @@ class Neo4jGraphClient:
                     name=entity_name
                 )
                 
-                timeline = [dict(record) for record in results]
+                timeline = [dict(record) async for record in results]
                 return timeline
         except Exception as e:
             logger.error(f"Failed to get entity timeline: {e}")

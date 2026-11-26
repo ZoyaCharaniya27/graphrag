@@ -87,7 +87,13 @@ class GraphBuilder:
         
         episodes_created = 0
         errors = []
-        
+
+        # Per-episode timeout. Defaults to 60s (unchanged); raise via GRAPH_EPISODE_TIMEOUT
+        # for larger batches or slower local LLMs so ingestion does not time out prematurely.
+        try:
+            episode_timeout = float(os.getenv("GRAPH_EPISODE_TIMEOUT", "60"))
+        except (TypeError, ValueError):
+            episode_timeout = 60.0
 
         # For very large documents, limit graph building to avoid extremely long processing
         # For Excel/tabular data, skip graph building entirely (too many similar chunks)
@@ -122,7 +128,7 @@ class GraphBuilder:
                 # Create source description (shorter)
                 source_description = f"Document: {document_title} (Chunk: {chunk.index})"
                 
-                # Add episode to graph with timeout (60 seconds per episode)
+                # Add episode to graph with timeout (default 60s, see episode_timeout)
                 try:
                     await asyncio.wait_for(
                         self.graph_client.add_episode(
@@ -138,11 +144,11 @@ class GraphBuilder:
                                 "processed_length": len(episode_content)
                             }
                         ),
-                        timeout=60.0  # 60 second timeout per episode
+                        timeout=episode_timeout  # per-episode timeout (GRAPH_EPISODE_TIMEOUT)
                     )
                     episodes_created += 1
                 except asyncio.TimeoutError:
-                    error_msg = f"Timeout adding chunk {chunk.index} to graph (exceeded 60s)"
+                    error_msg = f"Timeout adding chunk {chunk.index} to graph (exceeded {episode_timeout:.0f}s)"
                     logger.warning(error_msg)
                     errors.append(error_msg)
                     # Continue with next chunk

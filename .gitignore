@@ -195,3 +195,13 @@ secrets/
 *.key
 *.pem
 *.crt
+
+# Benchmark local vector-store data and generated results
+data/qdrant/
+data/chroma/
+# Scaled corpus is regenerated from data/generate_large_corpus.py; don't commit the 900 files
+data/corpus/10_Scaled_Reference/
+# Real dataset is downloaded/regenerated from data/load_real_dataset.py; don't commit it
+data/corpus_real/
+data/eval_questions_real.json
+results/*.csv
