@@ -307,6 +307,23 @@ python -m benchmark --help
 #   --router-model MODEL    (LLM used by --router llm; default mistral)
 ```
 
+### Interactive Q&A (terminal)
+
+Ask questions interactively and watch the router/modes/backends work live:
+
+```bash
+python -m benchmark.ask                                  # pgvector, router=rules, mistral
+python -m benchmark.ask --backend qdrant --router llm    # LLM router on qdrant
+python -m benchmark.ask --mode vector --router none      # fixed mode, no routing
+```
+
+Per question it prints the route taken (or fixed mode), the backend used, retrieval and
+generation latency, the retrieved sources, and the answer. Change settings mid-session with
+`/backend`, `/router`, `/mode`, `/llm`, `/limit`, `/sources`; `/help` lists all commands,
+`/quit` exits. Needs the same services as the benchmark (Postgres, Ollama, and Neo4j for
+graph/hybrid). It reuses the exact benchmark components, so its behavior matches
+`python -m benchmark`.
+
 ### Retrieval modes and the router
 
 - `vector` — dense similarity on the vector store (single-hop/factoid).
