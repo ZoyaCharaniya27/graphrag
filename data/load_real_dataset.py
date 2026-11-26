@@ -95,8 +95,36 @@ def load_hotpotqa(num_questions: int, seed: int):
             "(This performs a one-time download of HotpotQA; no paid API key is needed.)"
         ) from exc
 
-    print("Loading HotpotQA (hotpot_qa / distractor, validation split)...")
-    ds = load_dataset("hotpot_qa", "distractor", split="validation")
+    print("Loading HotpotQA (distractor, validation split)...")
+    # Newer huggingface_hub requires the canonical 'namespace/name' id; older datasets
+    # versions accept the bare legacy name. Try the canonical id first, then fall back.
+    last_err = None
+    ds = None
+    for repo_id in ("hotpotqa/hotpot_qa", "hotpot_qa"):
+        try:
+            ds = load_dataset(
+                repo_id, "distractor", split="validation", trust_remote_code=True
+            )
+            break
+        except TypeError:
+            # Older datasets versions do not accept trust_remote_code.
+            try:
+                ds = load_dataset(repo_id, "distractor", split="validation")
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_err = exc
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+    if ds is None:
+        raise SystemExit(
+            "Failed to load HotpotQA from the Hugging Face Hub.\n"
+            f"Last error: {last_err}\n"
+            "Fixes to try:\n"
+            "  * pip install -U datasets huggingface_hub\n"
+            "  * ensure the machine has internet access for the one-time download\n"
+            "  * optionally set a token:  setx HF_TOKEN <your_hf_token>  (free account)\n"
+            "  * or use --dataset squad for a simpler alternative (see --help)."
+        )
     ds = ds.shuffle(seed=seed).select(range(min(num_questions, len(ds))))
 
     examples = []
