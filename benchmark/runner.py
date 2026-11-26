@@ -122,8 +122,13 @@ async def _run_backend(
                 routed_mode = await router.choose_mode(
                     config.router, q.question, config.router_model
                 )
+                # Prominent, easy-to-spot statement of the routing decision.
                 logger.info(
-                    "   router[%s] %s -> mode=%s", config.router, q.id, routed_mode
+                    "ROUTE | %s | router=%s chose mode=%s for: %s",
+                    q.id,
+                    config.router,
+                    routed_mode.upper(),
+                    q.question[:70],
                 )
                 modes_to_run = [routed_mode]
             else:
