@@ -15,7 +15,26 @@ class EvalQuestion:
     expected: Optional[str] = None
     notes: Optional[str] = None
     must_include: list = field(default_factory=list)
+    # Relative path of the corpus file that grounds the answer, used for recall@k.
+    # Taken from an explicit "relevant_source" key, else parsed from the notes string.
+    relevant_source: Optional[str] = None
     extra: Dict[str, Any] = field(default_factory=dict)
+
+
+def _parse_relevant_source(item: Dict[str, Any]) -> Optional[str]:
+    """Resolve the grounding corpus path for recall@k scoring.
+
+    Prefers an explicit ``relevant_source`` field; otherwise parses the common
+    ``"Grounded in <path>"`` convention used in the ``notes`` field.
+    """
+    explicit = item.get("relevant_source")
+    if explicit:
+        return str(explicit).strip()
+    notes = item.get("notes") or ""
+    marker = "Grounded in "
+    if marker in notes:
+        return notes.split(marker, 1)[1].strip().rstrip(".")
+    return None
 
 
 def load_questions(path: str = DEFAULT_QUESTIONS_PATH) -> List[EvalQuestion]:
@@ -50,7 +69,7 @@ def load_questions(path: str = DEFAULT_QUESTIONS_PATH) -> List[EvalQuestion]:
         text = item.get("question")
         if not text:
             raise ValueError(f"Question #{idx + 1} in {path} is missing 'question'.")
-        known = {"id", "question", "expected", "notes", "must_include"}
+        known = {"id", "question", "expected", "notes", "must_include", "relevant_source"}
         extra = {k: v for k, v in item.items() if k not in known}
         must_include = item.get("must_include") or []
         if not isinstance(must_include, list):
@@ -62,6 +81,7 @@ def load_questions(path: str = DEFAULT_QUESTIONS_PATH) -> List[EvalQuestion]:
                 expected=item.get("expected"),
                 notes=item.get("notes"),
                 must_include=[str(k) for k in must_include],
+                relevant_source=_parse_relevant_source(item),
                 extra=extra,
             )
         )

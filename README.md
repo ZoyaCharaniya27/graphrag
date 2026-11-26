@@ -149,10 +149,19 @@ ollama pull mistral                       # at least one LLM (or configure an AP
 # Install optional benchmark adapters (only needed for Qdrant/Chroma)
 pip install qdrant-client chromadb
 
-# Generate the ~100-document evaluation corpus, then ingest it
-python data/generate_dataset.py                       # writes data/corpus/*.md (111 docs)
+# Generate the evaluation corpus, then ingest it
+python data/generate_dataset.py                       # authored docs (111) that ground q1-q38
+python data/generate_large_corpus.py                  # scale to ~1000 docs (offline, no API key)
 python -m ingestion.ingest --documents ./data/corpus  # embed + load into the vector DB
 ```
+
+`data/generate_large_corpus.py` adds ~900 distinct reference documents under
+`data/corpus/10_Scaled_Reference/` so the comparison runs on a realistic volume. It leaves
+the 111 authored docs untouched (so q1-q38 stay grounded) and takes `--target N` to change
+the total. At 1000 docs expect a longer ingest and a longer benchmark; use `--max-questions`
+for quick runs. (With a small corpus the three vector backends return near-identical results;
+the larger corpus and the recall@k / latency-percentile metrics below make the comparison
+more meaningful, though truly separating ANN backends needs tens of thousands of chunks.)
 
 The corpus (`data/corpus/`) spans nine compliance/markets categories. Ingest it **once**
 into pgvector; the benchmark then copies those same chunks into Qdrant/ChromaDB with
@@ -219,6 +228,9 @@ python -m benchmark \
 | `generation_latency_ms` | LLM generation time |
 | `prompt_tokens`, `completion_tokens`, `total_tokens` | Token usage (blank if unreported) |
 | `num_context_chunks` | Chunks included in the shared context |
+| `relevant_source` | Known relevant document for the question (for recall@k) |
+| `recall_at_k` | 1 if the relevant document was retrieved in the top-k, else 0 (blank if unlabelled) |
+| `relevant_rank` | 1-based rank of the relevant document when retrieved |
 | `score_f1` | Token-overlap F1 of the answer vs the golden reference |
 | `score_keyword_coverage` | Fraction of `must_include` keywords present in the answer |
 | `score_embedding_similarity` | Cosine similarity of answer vs golden reference embeddings |
@@ -230,8 +242,16 @@ python -m benchmark \
 | `error` | Any per-cell error (run continues on failure) |
 
 A **golden-standard summary** is also written to `results/golden_report.md`: average accuracy
-and latency broken down by LLM, by vector backend, and by retrieval mode, plus the
-best-scoring configuration and the lowest-scoring questions.
+and latency broken down by LLM, by vector backend, and by retrieval mode; **recall@k** and
+mean rank per backend and per mode; **retrieval latency percentiles** (p50/p95/p99/max) per
+backend and **generation latency percentiles** per LLM; plus the best-scoring configuration
+and the lowest-scoring questions.
+
+**recall@k** measures retrieval quality directly: for each question the relevant source
+document is known (from its `relevant_source`, or parsed from the `Grounded in ...` note), and
+recall@k is the fraction of questions whose relevant document appears in the top-k retrieved
+results. This is the metric that actually distinguishes vector backends, independent of the
+LLM. The CSV adds `relevant_source`, `recall_at_k`, and `relevant_rank` columns.
 
 ### Golden-standard accuracy scoring
 

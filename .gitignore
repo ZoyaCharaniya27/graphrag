@@ -199,4 +199,6 @@ secrets/
 # Benchmark local vector-store data and generated results
 data/qdrant/
 data/chroma/
+# Scaled corpus is regenerated from data/generate_large_corpus.py; don't commit the 900 files
+data/corpus/10_Scaled_Reference/
 results/*.csv

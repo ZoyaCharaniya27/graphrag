@@ -88,6 +88,41 @@ async def run_graph(query_text: str, limit: int) -> RetrievalOutcome:
         return RetrievalOutcome("graph", [], elapsed, str(exc))
 
 
+def _source_matches(record_source: str, relevant_source: str) -> bool:
+    """True if a retrieved record's source refers to the question's relevant file.
+
+    ``document_source`` from the store is the ingested source path (relative to the
+    ``--documents`` folder), e.g. ``05_Market_Structure/reg_nms.md``. The question's
+    ``relevant_source`` is the same relative path. Match on suffix/basename so it works
+    regardless of how deep the ingest path prefix was.
+    """
+    if not record_source or not relevant_source:
+        return False
+    rs = record_source.replace("\\", "/").strip().lower()
+    want = relevant_source.replace("\\", "/").strip().lower()
+    if rs == want or rs.endswith("/" + want) or want.endswith("/" + rs):
+        return True
+    # Fall back to basename comparison (filenames are unique in this corpus).
+    return rs.rsplit("/", 1)[-1] == want.rsplit("/", 1)[-1]
+
+
+def recall_at_k(outcome: "RetrievalOutcome", relevant_source: str):
+    """Compute recall@k signals for one retrieval.
+
+    Returns ``(hit, rank)`` where ``hit`` is 1 if the relevant source appears among the
+    retrieved records (0 otherwise), and ``rank`` is the 1-based position of the first
+    matching record (or None if not retrieved). Returns ``(None, None)`` when the question
+    has no labelled relevant source, so recall is simply not scored for it.
+    """
+    if not relevant_source:
+        return None, None
+    for i, rec in enumerate(outcome.records, start=1):
+        src = rec.get("document_source") or rec.get("source") or ""
+        if _source_matches(str(src), relevant_source):
+            return 1, i
+    return 0, None
+
+
 def build_context(outcome: RetrievalOutcome) -> str:
     """
     Build a single context string from retrieved records. The same string is passed to

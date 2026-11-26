@@ -336,13 +336,29 @@ to a known reference ("golden") answer.
 
 ### The dataset — `data/generate_dataset.py`
 
-Running `python data/generate_dataset.py` writes ~100 deterministic Markdown documents (111)
-under `data/corpus/` across nine compliance/markets categories (FINRA rules, SEC regulations,
-FIX protocol, compliance programs, market structure, registration/licensing, risk/reporting,
-clearing/settlement, and ethics/conduct). The content is fixed and needs no network access or
-external LLM API keys, so the golden answers can be written against the exact text. Ingest it
-with `python -m ingestion.ingest --documents ./data/corpus`. The first 53 documents are
-unchanged so evaluation questions q1-q20 stay grounded; the remainder expand coverage (q21+).
+`python data/generate_dataset.py` writes 111 authored Markdown documents under `data/corpus/`
+across nine compliance/markets categories (FINRA rules, SEC regulations, FIX protocol,
+compliance programs, market structure, registration/licensing, risk/reporting,
+clearing/settlement, ethics/conduct). The content is fixed and needs no network access or
+external LLM API keys, so the golden answers are written against the exact text. The first 53
+docs are unchanged so q1-q20 stay grounded; q21-q38 cover the rest.
+
+To run a larger comparative benchmark, scale the corpus with
+`python data/generate_large_corpus.py` (default `--target 1000`). It adds ~900 distinct
+reference documents under `data/corpus/10_Scaled_Reference/`, leaving the authored docs (and
+therefore all golden questions) untouched. It is deterministic and fully offline. Then ingest
+everything with `python -m ingestion.ingest --documents ./data/corpus`.
+
+### Retrieval quality — recall@k
+
+Beyond answer-text scoring, the benchmark measures *retrieval* quality with **recall@k**. Each
+question has a known relevant document (`relevant_source`, or parsed from the `Grounded in ...`
+note). recall@k is the fraction of questions whose relevant document is retrieved in the top-k
+results, reported per backend and per mode along with the mean rank of that document. This is
+the metric that genuinely distinguishes vector backends, independent of the LLM. The report
+also includes retrieval and generation **latency percentiles** (p50/p95/p99/max). Note that
+clearly separating ANN backends on recall/latency generally requires tens of thousands of
+chunks; at ~1000 docs the backends still return very similar results.
 
 ### The golden questions — `data/eval_questions.json`
 
@@ -445,7 +461,8 @@ returns an empty list, which the benchmark records and moves on.
 **Added (new files):**
 - `agent/vector_store/` — the interface, three adapters, and the factory.
 - `benchmark/` — the runner and its helpers, including `scoring.py` and `report.py`.
-- `data/generate_dataset.py` — generates the ~100-document evaluation corpus.
+- `data/generate_dataset.py` — generates the 111 authored, golden-grounded documents.
+- `data/generate_large_corpus.py` — scales the corpus to ~1000 docs (offline, deterministic).
 - `data/eval_questions.json` — golden questions with reference answers + required keywords.
 - `sql/migrations/001_fix_hybrid_search_float_type.sql` — the type-fix migration.
 - `.kiro/specs/vectordb-benchmark/` — the requirements/design/tasks spec.

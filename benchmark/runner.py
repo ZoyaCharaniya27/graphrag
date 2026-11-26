@@ -32,6 +32,9 @@ CSV_FIELDS = [
     "retrieval_latency_ms",
     "generation_latency_ms",
     "num_context_chunks",
+    "relevant_source",
+    "recall_at_k",
+    "relevant_rank",
     "prompt_tokens",
     "completion_tokens",
     "total_tokens",
@@ -114,12 +117,17 @@ async def _run_backend(
             for mode in config.modes:
                 outcome = await _retrieve(mode, store, embedding, q.question, config)
                 context = retrieval.build_context(outcome)
+                # recall@k is a property of the retrieval (same for every LLM on this cell)
+                recall_hit, recall_rank = retrieval.recall_at_k(
+                    outcome, q.relevant_source
+                )
                 for model_name in config.llms:
                     gen = await llm_runner.generate(q.question, context, model_name)
                     score = await _score(q, gen, config)
                     rows.append(
                         _build_row(
-                            backend, mode, q, model_name, outcome, gen, context, score
+                            backend, mode, q, model_name, outcome, gen, context,
+                            score, recall_hit, recall_rank,
                         )
                     )
     finally:
@@ -165,7 +173,10 @@ async def _score(q: EvalQuestion, gen, config: BenchmarkConfig):
         return scoring.ScoreResult()
 
 
-def _build_row(backend, mode, q, model_name, outcome, gen, context, score) -> Dict[str, Any]:
+def _build_row(
+    backend, mode, q, model_name, outcome, gen, context, score,
+    recall_hit=None, recall_rank=None,
+) -> Dict[str, Any]:
     errors = [e for e in (outcome.error, gen.error) if e]
     row = {
         "backend": backend,
@@ -176,6 +187,9 @@ def _build_row(backend, mode, q, model_name, outcome, gen, context, score) -> Di
         "retrieval_latency_ms": round(outcome.latency_ms, 2),
         "generation_latency_ms": round(gen.generation_latency_ms, 2),
         "num_context_chunks": outcome.num_results,
+        "relevant_source": q.relevant_source or "",
+        "recall_at_k": "" if recall_hit is None else recall_hit,
+        "relevant_rank": "" if recall_rank is None else recall_rank,
         "prompt_tokens": gen.prompt_tokens if gen.prompt_tokens is not None else "",
         "completion_tokens": (
             gen.completion_tokens if gen.completion_tokens is not None else ""
