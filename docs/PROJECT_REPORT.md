@@ -18,8 +18,11 @@ A deterministic, offline dataset generator produces a ~1000-document compliance/
 corpus (111 authored documents that ground the evaluation questions, plus ~889 generated
 reference documents) with no network access or paid API keys required.
 
-**Status:** implemented and runnable end to end. A full live benchmark over the 1000-doc
-corpus with golden scoring is the remaining step for the user to run on their machine.
+**Status:** implemented and runnable end to end, including the knowledge graph (the entity
+extraction model must be pulled; ingestion run without `--fast` now populates Neo4j and
+graph/hybrid retrieval return real results). Vector-DB, LLM, and retrieval-mode comparisons are
+summarized in §6; the full 1000-doc run to refresh those tables is the remaining step for the
+user to run on their machine.
 
 ## 2. Motivation and goals
 
@@ -141,13 +144,93 @@ slowest, consistent with the knowledge graph being sparsely populated. mistral s
 outperformed llama3. recall@k and latency-percentile metrics were added after this run and so
 are not in these numbers.
 
-### 6.2 1000-document run (pending)
+### 6.2 1000-document run (in progress)
 
-The corpus has since been scaled to 1000 documents and ingested (1000 chunks, graph building
-skipped via `--fast`). The full benchmark at this scale, with recall@k and latency
-percentiles, is the next run. Because the scaled documents are one chunk each and the backends
-share identical vectors, the expectation is that recall@k and accuracy will again be very close
-across backends, with latency being the most visible differentiator.
+The corpus has been scaled to 1000 documents and ingested (1000 chunks). The full benchmark at
+this scale, with recall@k and latency percentiles, is the run to populate the comparison
+tables in §6.3–§6.5 below. Because the scaled documents are one chunk each and the backends
+share identical vectors, the expectation is that recall@k and accuracy will be very close
+across backends, with **latency** the most visible differentiator; the larger corpus mainly
+sharpens the latency and recall signals relative to the 53-doc run.
+
+### 6.2a Knowledge graph status (now populated)
+
+Earlier runs left the Neo4j graph empty because entity extraction called an Ollama model
+(`qwen3:0.6b` by default, overridable via `LLM_CHOICE`) that was not pulled, so every
+extraction returned HTTP 404 and timed out — graph mode therefore returned no results. After
+pulling the extraction model, graph building succeeds: extraction calls return HTTP 200 and
+episodes are created (a harmless first-attempt retry occurs while the small model cold-loads
+into GPU memory, after which it is warm). Graph building is enabled by running ingestion
+**without** `--fast`; a configurable `GRAPH_EPISODE_TIMEOUT` (default 60s) governs the
+per-episode budget. With the graph populated, graph-only and hybrid retrieval now return real
+results rather than empty sets, so the three-mode comparison below is meaningful.
+
+Trade-off: graph building makes one extraction LLM call per chunk, so ingesting 1000 docs with
+the graph on is substantially slower than the `--fast` (vector-only) path and is best run on
+the GPU (Tesla) host.
+
+### 6.3 Vector database comparison (pgvector vs Qdrant vs ChromaDB)
+
+All three backends store the identical 384-dim embeddings and are queried through the same
+`BaseVectorStore` interface, so this comparison isolates the database, not the embedding.
+
+| Vector DB | Mode / deployment | Index | Avg retrieval latency (53-doc run) | Notes |
+|---|---|---|---|---|
+| PostgreSQL + pgvector | server (Docker) | IVFFlat (cosine) | ~807 ms | Default; reuses existing SQL and pool. |
+| Qdrant | embedded, local path / `:memory:` | HNSW (cosine) | ~522 ms (fastest) | No server; single-process lock on the on-disk path. |
+| ChromaDB | embedded, persistent local dir | HNSW (cosine) | ~671 ms | No server; metadata flattened to scalars. |
+
+Observed accuracy (composite `score_overall`, 53-doc run): qdrant 0.555, pgvector 0.539,
+chroma 0.523 — a 0.03 spread, i.e. within measurement noise. **Honest reading:** at this scale
+the backends are statistically indistinguishable on accuracy because they return essentially
+the same nearest neighbours; the only robust differentiator observed was **latency**, where
+Qdrant's embedded HNSW was fastest and pgvector slowest. recall@k (added after the 53-doc run)
+is the metric that will best separate them and is reported per backend in `golden_report.md`
+once the 1000-doc run completes.
+
+Qualitative differences that matter in practice (independent of these numbers):
+
+| Aspect | pgvector | Qdrant | ChromaDB |
+|---|---|---|---|
+| Needs a running server | Yes (Postgres) | No (embedded) | No (embedded) |
+| Native full-text / hybrid | Yes (SQL `ts_rank`) | Client-side blend here | Client-side blend here |
+| Operational familiarity | High (just SQL) | Medium | Medium |
+| Concurrency | Pooled connections | Single-process on-disk lock | Single process |
+| Best fit | Already on Postgres | Fast local experiments | Simple local persistence |
+
+### 6.4 LLM comparison (mistral vs llama3, and API models)
+
+Each LLM answers from the **same retrieved context**, so this isolates the model.
+
+| LLM | Host | Avg answer quality (53-doc run) | Avg generation latency | Token usage |
+|---|---|---|---|---|
+| mistral (7B) | local Ollama | 0.550 | ~24.8 s | recorded per row |
+| llama3 (8B) | local Ollama | 0.528 | ~26.3 s | recorded per row |
+
+**Honest reading:** mistral edged llama3 by ~0.02 — again within noise for 20 questions, so
+this is a directional observation, not a ranking. Both are adequate *answer* generators for
+factual lookups over retrieved text, but weak as *judges*. Generation latency on CPU/small GPU
+is tens of seconds per answer; a Tesla GPU reduces this substantially.
+
+The harness also supports OpenAI-compatible **API models** (set the base URL + API key; pass
+e.g. `--llms gpt-4o-mini`), which is the recommended path for a **stronger judge**
+(`--judge gpt-4o-mini` / a larger local model). Embeddings and the vector DBs remain local; only
+the LLM call is remote. This mixes a cheap local answer model with a high-quality remote judge.
+
+### 6.5 Retrieval mode comparison (vector vs graph vs hybrid)
+
+| Mode | What it queries | Avg accuracy (53-doc run) | Avg retrieval latency | Status |
+|---|---|---|---|---|
+| vector | vector DB only | 0.579 (best) | ~102 ms | Strong for factual lookups. |
+| hybrid | vector + keyword blend | 0.555 | ~148 ms | Close to vector here. |
+| graph | Neo4j knowledge graph | 0.483 (lowest) | ~1751 ms (slowest) | Was empty in the 53-doc run; now populated (§6.2a). |
+
+**Honest reading:** vector retrieval was both the most accurate and the fastest for this
+factual-lookup question set; hybrid was comparable; graph was lowest and slowest. Crucially,
+the 53-doc graph numbers reflect an **empty** graph. Now that extraction works and the graph is
+populated, the graph/hybrid numbers should be re-measured — graph may still trail vector for
+pure factual lookups (its strength is relationship/multi-hop queries, which this question set
+does not emphasize), but it will no longer be empty.
 
 ## 7. Limitations (stated plainly)
 
@@ -157,8 +240,13 @@ across backends, with latency being the most visible differentiator.
    cannot credibly claim one is more accurate.
 2. **Synthetic corpus.** Deterministic templated documents are reproducible but less lexically
    diverse than real-world text, making retrieval easier than in production.
-3. **Graph mode underpowered.** Entity extraction depends on a small local model that was not
-   always available, so the knowledge graph was often empty and graph-mode results are weak.
+3. **Graph mode: now populated but still lookup-limited.** The earlier empty-graph problem is
+   fixed (the extraction model must be pulled, and ingestion run without `--fast`). However,
+   extraction still uses a small model and the evaluation questions are factual lookups, which
+   vector search already serves well; graph's advantage is relationship/multi-hop queries that
+   this question set does not emphasize. A stronger LLM-based extractor and multi-hop questions
+   would let graph mode show its strength. Graph ingestion is also much slower (one LLM call
+   per chunk), so large-corpus graph builds should run on the GPU host.
 4. **LLM judge uses small models.** mistral/llama3 (7–8B) are adequate answer generators for
    factual lookups but weak as judges (noisy grading, self-preference). The deterministic
    metrics (keyword coverage, embedding similarity) and recall@k are more trustworthy here.
@@ -177,22 +265,29 @@ across backends, with latency being the most visible differentiator.
 ## 9. How to reproduce
 
 ```bash
-# 1. services + models
+# 1. services + models (pull the graph extraction model too)
 docker compose up -d
-ollama pull mistral && ollama pull llama3
+ollama pull mistral && ollama pull llama3 && ollama pull qwen3:0.6b
 pip install -r requirements.txt && pip install qdrant-client chromadb
 
-# 2. build + ingest the 1000-doc corpus (fast = skip graph)
+# 2. build the 1000-doc corpus
 python data/generate_dataset.py
 python data/generate_large_corpus.py          # -> ~1000 docs
+
+# 3a. OPTION A — vector-only (fast, skips the graph): seconds to minutes
 python -m ingestion.ingest --documents ./data/corpus --clean --fast
 
-# 3. sanity benchmark, then full run
+# 3b. OPTION B — WITH the knowledge graph (slower: one LLM call per chunk; use the GPU host)
+export GRAPH_EPISODE_TIMEOUT=120               # give the small extractor headroom
+python -m ingestion.ingest --documents ./data/corpus --clean
+
+# 4. sanity benchmark, then full run
+#    (include 'graph' in --modes only if you ingested with OPTION B)
 python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
-  --llms mistral llama3 --modes vector hybrid --max-questions 5 \
+  --llms mistral llama3 --modes vector graph hybrid --max-questions 5 \
   --output results/sanity.csv
 python -m benchmark --backends pgvector qdrant chroma --load-from-pg \
-  --llms mistral llama3 --modes vector hybrid \
+  --llms mistral llama3 --modes vector graph hybrid \
   --output results/comparison_summary.csv
 
 # outputs: results/comparison_summary.csv and results/golden_report.md
