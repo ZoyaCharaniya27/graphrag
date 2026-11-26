@@ -69,8 +69,15 @@ def _extract_usage(result: Any) -> Dict[str, Optional[int]]:
     Returns prompt/completion/total as ints when available, else None.
     """
     prompt = completion = total = None
+    # pydantic-ai changed `usage` from a method (older) to a property (v2.75+).
+    # Prefer the property; fall back to calling it if it's still a method.
+    usage = None
     try:
-        usage = result.usage() if callable(getattr(result, "usage", None)) else None
+        attr = getattr(result, "usage", None)
+        if callable(attr):
+            usage = attr()          # older pydantic-ai: result.usage()
+        else:
+            usage = attr            # v2.75+: result.usage is the Usage object
     except Exception:  # noqa: BLE001
         usage = None
     if usage is None:
