@@ -126,6 +126,20 @@ class QdrantStore(BaseVectorStore):
         )
         return len(points)
 
+    def _query_points(
+        self,
+        query_vector: List[float],
+        limit: int,
+        with_payload: bool = True,
+    ):
+        response = self._client.query_points(
+            collection_name=COLLECTION,
+            query=query_vector,
+            limit=limit,
+            with_payload=with_payload,
+        )
+        return getattr(response, "points", response)
+
     async def vector_search(
         self,
         embedding: List[float],
@@ -133,8 +147,7 @@ class QdrantStore(BaseVectorStore):
     ) -> List[VectorRecord]:
         await self.initialize()
         hits = await asyncio.to_thread(
-            self._client.search,
-            collection_name=COLLECTION,
+            self._query_points,
             query_vector=list(embedding),
             limit=limit,
             with_payload=True,
@@ -151,8 +164,7 @@ class QdrantStore(BaseVectorStore):
         await self.initialize()
         candidate_n = max(limit * 4, 20)
         hits = await asyncio.to_thread(
-            self._client.search,
-            collection_name=COLLECTION,
+            self._query_points,
             query_vector=list(embedding),
             limit=candidate_n,
             with_payload=True,

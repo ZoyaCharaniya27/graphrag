@@ -5,7 +5,7 @@ Flexible provider configuration for LLM and embedding models.
 import os
 from typing import Optional, Union
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.models import Model
 import time
 from sentence_transformers import SentenceTransformer
@@ -62,7 +62,7 @@ def get_llm_model(model_choice: Optional[str] = None) -> Union[str, Model]:
     
     # Use OpenAI-compatible mode with /v1 endpoint
     provider = OpenAIProvider(base_url=f"{base_url}/v1")
-    return OpenAIModel(model_name=llm_choice, provider=provider)
+    return OpenAIChatModel(model_name=llm_choice, provider=provider)
 
 
 def get_embedding_client() -> SentenceTransformer:
@@ -95,7 +95,7 @@ def get_embedding_model() -> str:
     return 'all-MiniLM-L6-v2'
 
 
-def get_ingestion_model() -> OpenAIModel:
+def get_ingestion_model() -> Model:
     """
     Get ingestion-specific LLM model (can be faster/cheaper than main model).
 
